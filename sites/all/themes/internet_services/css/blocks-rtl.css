@@ -1,0 +1,36 @@
+/**
+ * @file
+ * RTL companion for the blocks.css file.
+ */
+
+
+.sidebar .block {
+  -khtml-border-radius-topleft: 12px;
+  -khtml-border-radius-topright: 0;
+  -moz-border-radius-topleft: 12px;
+  -moz-border-radius-topright: 0;
+  -webkit-border-top-left-radius: 12px;
+  -webkit-border-top-right-radius: 0;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 0;
+}
+
+.sidebar h2.title {
+  -khtml-border-radius-topleft: 10px;
+  -khtml-border-radius-topright: 0;
+  -moz-border-radius-topleft: 10px;
+  -moz-border-radius-topright: 0;
+  -webkit-border-top-left-radius: 10px;
+  -webkit-border-top-right-radius: 0;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 0;
+}
+
+/*********************
+LANGUAGE BLOCK IN HEADER - Estelle
+******************************/
+.i18n-ar .region-header #block-locale-0 {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+}
