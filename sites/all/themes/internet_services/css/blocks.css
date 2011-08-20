@@ -160,6 +160,6 @@ div.region-header{
 }
 .i18n-en .region-header #block-locale-0, .i18n-fr .region-header #block-locale-0 {
     position: absolute;
-    right: 10px;
-    top: 10px;
+    right: 15px;
+    top: 30px;
 } 

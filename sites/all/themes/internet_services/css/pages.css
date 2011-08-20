@@ -61,7 +61,7 @@ body {
 
 #logo /* Wrapping link for logo */ {
   float: left; /* LTR */
-  margin: 15px 0 20px 10px; /* LTR */
+  margin: 15px 0 10px 10px; /* LTR */
   padding: 0;
 }
 
@@ -73,7 +73,11 @@ body {
 #name-and-slogan /* Wrapper for website name and slogan */ {
   float: left; /* LTR */
   margin: 15px 0 20px 10px; /* LTR */
-  padding: 0;
+  padding-top: 35px;
+}
+
+.i18n-en #name-and-slogan, .i18n-fr #name-and-slogan {
+      padding-left:20px;
 }
 
 h1#site-name,
@@ -91,6 +95,7 @@ div#site-name /* The name of the website */ {
 #site-name a:visited {
   color: #e0691a;
   text-decoration: none;
+  font-size: 1.6em;
 }
 
 #site-name a:hover,
@@ -358,4 +363,26 @@ ul.links li {
   position: absolute !important;
   clip: rect(1px 1px 1px 1px); /* IE6, IE7 */
   clip: rect(1px, 1px, 1px, 1px);
+}
+
+/**************************
+  LINKS PAGE - Estelle
+****************************/
+.node-page .link {
+    padding-bottom: 20px;
+    overflow : hidden;
+}
+.node-page .link .link-text {
+    text-align: justify;
+    padding-bottom: 10px;
+}
+.node-page .link  div.image-inline  {
+    display: inline;
+}
+.node-page .link div.link-text-inline  {
+    display: inline;
+}
+.node-page .link div.image-right {
+    float: right;
+    padding-left: 20px;
 }
