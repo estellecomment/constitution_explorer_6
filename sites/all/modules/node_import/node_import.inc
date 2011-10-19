@@ -602,13 +602,15 @@ function node_import_values($type, $data, $map, $defaults, $options, $fields, $p
             break;
           }
           $fieldvalues[] = $value;
-        }
+        }// just copied content from columns.
 
         if (!$fieldinfo['allow_empty']) {
           $fieldvalues = array_filter($fieldvalues, 'drupal_strlen');
-        }
+        }//just filtered out the empty columns
 
-        if ($fieldinfo['has_hierarchy'] && strlen($hseparator) > 0) {
+        // ESTELLE : this adds a layer to the tree in the case of tags. It messes up later.
+        // So we won't imput "parent>>child" tags. Instead, create the parent, and use "child".
+        if ($fieldinfo['has_hierarchy'] && strlen($hseparator) > 0 && $fieldname != 'taxonomy:1') {
           foreach ($fieldvalues as $i => $value) {
             $fieldvalues[$i] = strlen($value) > 0 ? array_map('trim', explode($hseparator, $value)) : array($value);
           }
@@ -676,8 +678,8 @@ function node_import_values($type, $data, $map, $defaults, $options, $fields, $p
     }
 
     // If empty values are not allowed, filter them out.
-    if (!$fieldinfo['allow_empty']) {
-      $values[$fieldname] = array_filter((array)$values[$fieldname], 'drupal_strlen');
+    if (!$fieldinfo['allow_empty'] ){//&& $fieldname != 'taxonomy:1') { // ESTELLE - hack to avoid passing an array of arrays. The taxonomy has been rid of empties already anyway.
+        $values[$fieldname] = array_filter((array)$values[$fieldname], 'drupal_strlen');
     }
 
     // Handle files specially. The preprocess function only returns

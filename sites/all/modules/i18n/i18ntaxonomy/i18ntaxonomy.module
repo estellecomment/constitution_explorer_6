@@ -288,7 +288,10 @@ function i18ntaxonomy_taxonomy($op, $type, $edit = NULL) {
             } elseif($lang = _i18n_get_context_lang()) {
               // The term may come from a node tags field, just if this is not a taxonomy form
               _i18ntaxonomy_term_set_lang($edit['tid'], $lang);
-            } else {
+            } else if(!empty($edit['node_language'])){
+                // new term coming from a node, set the node language as term language
+                _i18ntaxonomy_term_set_lang($edit['tid'], $edit['node_language']);
+            } else{
               // Not from the taxonomy form nor node form, set current language
               _i18ntaxonomy_term_set_lang($edit['tid'], $language->language);
             }
@@ -812,7 +815,7 @@ function i18ntaxonomy_translate_terms($taxonomy, $langcode, $fullterms = TRUE) {
         if ($translated_terms && !empty($translated_terms[$langcode])) {
           $newterm = $translated_terms[$langcode];
           $translation[$newterm->tid] = $fullterms ? $newterm : $newterm->tid;
-        }
+        } // ESTELLE - if you don't find a translation then you won't return the term at all.
       }
       else {
         // Term has no language. Should be ok.
@@ -1098,4 +1101,14 @@ function _i18ntaxonomy_filter_terms($term) {
   else {
     return is_object($term) ? $term : taxonomy_get_term($term);
   }
+}
+
+ /**ESTELLE - patch failed 
++  * Implementation of hook_views_api().
++  */
+ function i18ntaxonomy_views_api() {
+   return array(
+     'api' => '2.0',
+     'path' => drupal_get_path('module', 'i18ntaxonomy') . '/includes',
+   );
 }

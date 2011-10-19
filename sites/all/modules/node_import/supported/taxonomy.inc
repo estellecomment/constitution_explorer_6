@@ -95,6 +95,7 @@ function node_import_create_taxonomy($type, $values, $preview) {
         }
         $output .= '</dl>';
       }
+      // ESTELLE add display of language here. Where is it used, is it really useful?
 
       $output .= '</div>';
 
@@ -109,7 +110,7 @@ function node_import_create_taxonomy($type, $values, $preview) {
       node_import_check_taxonomy_term($values['name'], $field, array(), $preview, 'add');
     }
   }
-  else {
+  else {//$preview=false
     module_load_include('inc', 'taxonomy', 'taxonomy.admin');
 
     $values['op'] = t('Save');
@@ -117,15 +118,15 @@ function node_import_create_taxonomy($type, $values, $preview) {
       'values' => $values,
     );
 
-    if ($type == 'vocabulary') {
+    if ($type == 'vocabulary') {//full vocab
       node_import_drupal_execute('taxonomy_form_vocabulary', $form_state);
       $output = $form_state['vid'];
     }
-    else {
+    else {// single term
       $types = node_import_types();
       $vocabulary = $types[$type]['vocabulary'];
 
-      node_import_drupal_execute('taxonomy_form_term', $form_state, $vocabulary);
+      node_import_drupal_execute('taxonomy_form_term', $form_state, $vocabulary);// where does this go?
       $output = $form_state['tid'];
 
       // As a term can refer to other terms (parent, relation), we
@@ -294,6 +295,11 @@ function taxonomy_node_import_fields($type) {
       'module' => 'taxonomy',
       'input_format' => 'weight',
     );
+    //ESTELLE add language here. What module? i18n taxonomy
+    $fields['language'] = array(
+      'title' => t('Language'),
+      'group' 
+    );
   }
 
   // Import taxonomy terms for nodes.
@@ -313,7 +319,7 @@ function taxonomy_node_import_fields($type) {
         'multiple_separator' => $vocabulary->tags ? ',' : '||',
       );
     }
-  }
+  }//ESTELLE - this might have to be modified when we allow free tagging
 
   return $fields;
 }
@@ -511,6 +517,7 @@ function taxonomy_node_import_defaults($type, $defaults, $fields, $map) {
       '#size' => 6,
       '#default_value' => isset($defaults['weight']) ? $defaults['weight'] : 0,
     );
+    // ESTELLE implement default here
   }
 
   // Import taxonomy terms for nodes.
@@ -610,5 +617,5 @@ function taxonomy_node_import_values_alter(&$values, $type, $defaults, $options,
     }
     $values['taxonomy'] = $taxonomy;
   }
-}
+}//ESTELLE what's this?
 
