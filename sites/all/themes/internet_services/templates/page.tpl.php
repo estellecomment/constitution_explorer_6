@@ -108,13 +108,26 @@
  */
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="<?php print $language->language; ?>" lang="<?php print $language->language; ?>" dir="<?php print $language->dir; ?>">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="<?php print $language->language; ?>" lang="<?php print $language->language; ?>" dir="<?php print $language->dir; ?> " xmlns:fb="http://www.facebook.com/2008/fbml">
 
 <head>
   <title><?php print $head_title; ?></title>
   <?php print $head; ?>
   <?php print $styles; ?>
   <?php print $scripts; ?>
+  <?php //Facebook Opengraph tags?>
+  <?php if($node):?>
+    <?php if($country && $depth && $depth>1): ?>
+        <meta property="og:title" content="<?php print $country . " | " . $head_title?>"/>
+    <?php else:?>
+        <meta property="og:title" content="<?php print $head_title?>"/>     
+    <?php endif;?>
+    <meta property="og:image" content="<?php print 'http://gtest.viveks.info' . $logo ?>" />
+    <meta property="og:url" content="<?php print $base_url . '/node/' . $node->nid ?>"/>
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="<?php print $site_name?>" />
+    <meta property="fb:app_id" content="175758082499159" />
+  <?php endif;?>
 </head>
 <body class="<?php print $classes; ?>">
 
@@ -203,7 +216,7 @@
       <div id="content" class="column"><div class="section">
 
         <?php if ($mission): ?>
-          <div id="mission"><?php print $mission; ?></div>
+          <div id="mission"><?php print t($mission); ?></div>
         <?php endif; ?>
 
         <?php print $highlighted; ?>

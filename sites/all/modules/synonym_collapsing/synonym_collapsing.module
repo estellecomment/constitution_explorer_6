@@ -1,0 +1,198 @@
+<?php
+
+/**
+ * Implementation of hook_menu.
+ */
+function synonym_collapsing_menu() {
+  $items = array();
+  $items['admin/content/taxonomy/synonym_collapsing'] = array(
+    'title' => t('Synonym collapsing'),
+    'description' => t('Configure the settings for synonym collapsiing'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('synonym_collapsing_admin'),
+    'access arguments' => array('administer taxonomy'),
+    'file' => 'synonym_collapsing.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
+  $items['synonym_collapsing/autocomplete'] = array(
+    'title' => 'Autocomplete taxonomy',
+    'page callback' => 'synonym_collapsing_autocomplete',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+    'file' => 'synonym_collapsing.pages.inc',
+  );
+  return $items;
+}
+
+/**
+ * Implementation of hook_form_alter.
+ */
+function synonym_collapsing_form_alter(&$form, $form_state, $form_id) {
+  if (isset($form['type']) && isset($form['#node']) && isset($form['taxonomy']) && isset($form['taxonomy']['tags'])) {
+    foreach (variable_get('synonym_collapsing_vocabularies', array()) as $vid => $vocab) {
+      if (isset($form['taxonomy']['tags'][$vid])) {
+        $form['taxonomy']['tags'][$vid]['#autocomplete_path'] = 'synonym_collapsing/autocomplete/'. $vid;
+        $form['taxonomy']['tags'][$vid]['#default_value'] = drupal_implode_tags(synonym_collapsing_collapse_synonyms(drupal_explode_tags($form['taxonomy']['tags'][$vid]['#default_value'])));
+      }
+    }
+  }
+}
+
+/**
+ * Implementation of hook_nodeapi.
+ */
+function synonym_collapsing_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  switch ($op) {
+    case 'presave':
+      if (!empty($node->taxonomy)) {
+        $node->taxonomy = synonym_collapsing_handle_nodeapi($node, $node->taxonomy);
+      }
+      break;
+  }
+}
+
+function synonym_collapsing_handle_nodeapi($node, $terms) {
+  $vids = array_keys(variable_get('synonym_collapsing_vocabularies', array()));
+  $synonym_collapsing = FALSE;
+  if (isset($terms['tags'])) {
+    foreach ($terms['tags'] as $vid => $vid_value) {
+      if (in_array($vid, $vids)) {
+        $vid_value = drupal_explode_tags($vid_value);
+        $vid_value = synonym_collapsing_collapse_synonyms($vid_value, $vid, TRUE);
+        $terms['tags'][$vid] = drupal_implode_tags($vid_value);
+      }
+      $synonym_collapsing = FALSE;
+    }
+  }
+  return $terms;
+}
+
+/**
+ * Helper function that changes all the nodes to the terms to how they should be.
+ * Collapses the synonyms to their base terms.
+ */
+function synonym_collapsing_collapse_synonyms($terms, $vid = NULL, $message = FALSE) {
+  $vids = array_keys(variable_get('synonym_collapsing_vocabularies', array()));
+  if (is_null($vid)) {
+    $synonym_collapsing = TRUE;
+  }
+  else {
+    $synonym_collapsing = FALSE;
+    if (in_array($vid, $vids)) {
+      $synonym_collapsing = TRUE;
+    }
+  }
+
+  $synonyms = array();
+  $added_terms = array();
+  if ($synonym_collapsing) {
+    foreach ($terms as $key => $term) {
+      // Fetch any applicable synonym roots.
+      $base = taxonomy_get_synonym_root($term);
+      if (is_object($base)) {
+        if (!in_array($base->name, $added_terms)) {
+          // A base term was found, so set the typed term to the base term.
+          if ($message) {
+            drupal_set_message(t('The term %term has been reverted to its synonym, %synonym.', array('%term' => $term, '%synonym' => $base->name)), 'status', FALSE);
+          }
+          $term = $base->name;
+          $added_terms[strtolower($term)] = strtolower($term);
+        }
+        else {
+          if ($message) {
+            drupal_set_message(t('The tag %term\'s synonym, %synonym, was already added, so the %term tag has been removed.', array('%term' => $term, '%synonym' => $base->name)), 'status', FALSE);
+          }
+          unset($terms[$key]);
+        }
+      }
+      else {
+        if (!in_array($term, $added_terms)) {
+          $added_terms[strtolower($term)] = strtolower($term);
+        }
+        else {
+          unset($terms[$key]);
+          if ($message) {
+            drupal_set_message(t('The tag %term was already added, so it has been removed.', array('%term' => $term)), 'status', FALSE);
+          }
+        }
+      }
+    }
+  }
+  return $added_terms;
+}
+
+function synonym_collapsing_preview_terms($node) {
+  $taxonomy = array();
+  if (isset($node->taxonomy)) {
+    foreach ($node->taxonomy as $key => $term) {
+      unset($node->taxonomy[$key]);
+      // A 'Multiple select' and a 'Free tagging' field returns an array.
+      if (is_array($term)) {
+        foreach ($term as $tid) {
+          if ($key == 'tags') {
+            // Free tagging; the values will be saved for later as strings
+            // instead of objects to fill the form again.
+            foreach ($term as $vid => $single_term) {
+              $tags = drupal_explode_tags($term[$vid]);
+              $tags = synonym_collapsing_collapse_synonyms($tags, $vid, TRUE);
+              $taxonomy['tags'][$vid] = drupal_implode_tags($tags);
+            }
+          }
+          else {
+            $taxonomy[$tid] = taxonomy_get_term($tid);
+          }
+        }
+      }
+      // A 'Single select' field returns the term id.
+      elseif ($term) {
+        if (is_object($term)) {
+          $taxonomy[$term->tid] = $term;
+        }
+        else {
+          $taxonomy[$term] = taxonomy_get_term($term);
+        }
+      }
+    }
+  }
+  return $taxonomy;
+}
+
+/**
+ * Implementation of hook_link_alter().
+ */
+function synonym_collapsing_link_alter(&$links, $node) {
+  if (isset($node)) {
+    // If previewing, the terms must be converted to objects first.
+    //if ($node->build_mode == NODE_BUILD_PREVIEW) {
+    if (isset($node->build_mode) && $node->build_mode == NODE_BUILD_PREVIEW) {
+      $links = array();
+      $node->taxonomy = synonym_collapsing_preview_terms($node);
+      if (!empty($node->taxonomy)) {
+        foreach ($node->taxonomy as $term) {
+          // During preview the free tagging terms are in an array unlike the
+          // other terms which are objects. So we have to check if a $term
+          // is an object or not.
+          if (is_object($term)) {
+            $links['taxonomy_term_'. $term->tid] = array(
+              'title' => $term->name,
+              'href' => taxonomy_term_path($term),
+              'attributes' => array('rel' => 'tag', 'title' => strip_tags($term->description)),
+            );
+          }
+          // Previewing free tagging terms; we don't link them because the
+          // term-page might not exist yet.
+          else {
+            foreach ($term as $free_typed) {
+              $typed_terms = drupal_explode_tags($free_typed);
+              foreach ($typed_terms as $typed_term) {
+                $links['taxonomy_preview_term_'. $typed_term] = array(
+                  'title' => $typed_term,
+                );
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

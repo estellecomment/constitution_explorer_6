@@ -1,0 +1,1 @@
+This module allows site administrators to easily collapse several similar (synonymous) terms into one super-term, as to avoid duplicate terms (for both ny and New York, say). This will likely be in core of Drupal 7. Module developed by Charlie Gordon (cwgordon7).

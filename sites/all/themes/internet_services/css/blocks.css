@@ -57,10 +57,13 @@
   font-family: Arial, "Trebuchet MS", Tahoma, sans-serif;
   font-size: 1.111em;
   font-weight: bold;
-  height: 2.5em;
-  line-height: 2.5em;
   margin: 0;
-  padding: 0 .5em;
+  /*ESTELLE edit for ling titles to display on 2 lines */
+  /*height: 2.5em;*/ 
+  /*line-height: 2.5em;
+  padding: 0 .5em;*/
+  line-height: 1.7em;
+  padding: 0.4em .5em;
 }
 
 .sidebar h2.title a,
@@ -158,8 +161,16 @@ LANGUAGE BLOCK IN HEADER - Estelle
 div.region-header{
     margin:0;
 }
-.i18n-en .region-header #block-locale-0, .i18n-fr .region-header #block-locale-0 {
+.ltr .region-header .block-locale{
+    position: absolute;
+    right: 110px;
+    top: 20px;
+} 
+/*********************
+ESTELLE - CDDRL logo in header
+*************************/
+.ltr .region-header .region-count-2{
     position: absolute;
     right: 15px;
-    top: 30px;
-} 
+    top: 40px;
+}

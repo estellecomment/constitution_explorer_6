@@ -86,16 +86,25 @@
     <span class="submitted"><?php print $submitted ?></span>
   <?php endif; ?>
 
+  <?php /*ADD REPORT LINK HERE*/?>
+    
   <?php if ($terms): ?>
     <?php print internet_services_print_terms($node, $vname = 'Tags', $labels = TRUE);?>
   <?php endif;?>
   </div>
 
+  <?php if ($page): ?>
+  	<!--fb:like></fb:like-->
+        <?php print $like_button; ?>
+  <?php endif;?>
+
   <div class="content">
     <?php print $content ?>
   </div>
   
+  
   <?php if ($type != 'book') : ?>
     <?php print $links; ?>
   <?php endif;?>
+  <?php print $reportlink;?>
 </div>

@@ -29,8 +29,16 @@
 /*********************
 LANGUAGE BLOCK IN HEADER - Estelle
 ******************************/
-.i18n-ar .region-header #block-locale-0 {
+.rtl .region-header .block-locale{
+    position: absolute;
+    left: 110px;
+    top: 20px;
+}
+/*********************
+ESTELLE - CDDRL logo in header
+*************************/
+.rtl .region-header .region-count-2{
     position: absolute;
     left: 15px;
-    top: 30px;
+    top: 40px;
 }

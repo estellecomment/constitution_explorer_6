@@ -29,27 +29,17 @@
  * @see template_preprocess_book_navigation()
  */
 ?>
-<?php  if (($tree || $has_links ) && $has_children): ?>
+<?php  if ($has_children): ?>
   <div id="book-navigation-<?php print $node_id; ?>" class="book-navigation">
-    <?/*php print $tree;*/ ?> 
-    <?php foreach($treenodes as $treenode):?>
-        <?php print $treenode; ?>
-        <?php print $breadcrumb; ?>
-    <?php endforeach;?>
-
-    <?/*php if ($has_links): ?>
-    <div class="page-links clearfix">
-      <?php  if ($prev_url) : ?>
-        <a href="<?php print $prev_url; ?>" class="page-previous" title="<?php print t('Go to previous page'); ?>"><?php print t('‹ ') . $prev_title; ?></a>
-      <?php endif; ?>
-      <?php if ($parent_url) : ?>
-        <a href="<?php print $parent_url; ?>" class="page-up" title="<?php print t('Go to parent page'); ?>"><?php print t('up'); ?></a>
-      <?php endif; ?>
-      <?php if ($next_url) : ?>
-        <a href="<?php print $next_url; ?>" class="page-next" title="<?php print t('Go to next page'); ?>"><?php print $next_title . t(' ›'); ?></a>
-      <?php endif; ?>
-    </div>
-    <?php endif;*/ ?>
-
+      <?php if ($page):?>
+        <?php foreach($treenodes as $treenode):?>
+            <?php print $treenode; ?>
+            <?php print $breadcrumb; ?>
+        <?php endforeach;?>
+      <?php else:?>
+        <?php print $read_more; ?>
+      <?php endif;?>
   </div>
-<?php endif; ?>
+<?php else:?>
+    <?php print $reportlink;?>
+<?php endif;?>

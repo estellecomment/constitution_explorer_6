@@ -1,0 +1,10 @@
+name = Synonym Collapsing
+description = Collapses the synonyms in freetagging taxonomies to match their base terms.
+dependencies[] = taxonomy
+core = "6.x"
+; Information added by drupal.org packaging script on 2011-02-25
+version = "6.x-1.x-dev"
+core = "6.x"
+project = "synonym_collapsing"
+datestamp = "1298620317"
+

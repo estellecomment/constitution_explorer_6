@@ -17,7 +17,8 @@
   margin: 15px 10px 20px 0;
 }
 
-.i18n-ar #name-and-slogan {
+/*.i18n-ar #name-and-slogan {*/
+.rtl #name-and-slogan {
       padding-right:20px;
 }
 

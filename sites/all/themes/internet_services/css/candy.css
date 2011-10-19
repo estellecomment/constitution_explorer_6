@@ -122,6 +122,10 @@ ul.links li.print_pdf {
   padding-left: 18px; /* LTR */
 }
 
+ul.links li.dff_like {
+    padding-left: 70px;
+}
+
 /**
  * Aggregator.module
  */
@@ -185,4 +189,10 @@ div.vertical-tabs ul.vertical-tabs-list li {
 #civicrm-menu {
   position: relative !important;
   z-index: auto;
+}
+
+.report {
+    background: url(../images/report_small.jpg) left center no-repeat;
+    padding-left:20px;
+    float: right;
 }

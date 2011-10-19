@@ -100,6 +100,7 @@ function internet_services_preprocess_page(&$vars, $hook) {
   $directory = drupal_get_path('theme', 'internet_services') . '/css/';
   $query_string = '?'. substr(variable_get('css_js_query_string', '0'), 0, 1);
   $base_path = base_path() . $directory;
+  
 
   // Add layout stylesheets manually instead of via its .info file.
   switch (theme_get_setting('zen_layout')) {
@@ -127,6 +128,55 @@ function internet_services_preprocess_page(&$vars, $hook) {
   if (file_exists("$directory/custom.css")) {
     $vars['styles'] .= '<link type="text/css" rel="stylesheet" media="all" href="' . $base_path . 'custom.css' . $query_string . '" />' . "\n";
   }
+  
+  //ESTELLE - reformat the breadcrumbs properly if possible. 
+  // Note : this in only for the page breadcrumbs, not nodes.
+  $separator = theme_get_setting('zen_breadcrumb_separator');
+  $old_crumbs = $vars['breadcrumb'];
+  if (substr($old_crumbs, 0, 24) ==  '<div class="breadcrumb">' && substr($old_crumbs,-6,6) == '</div>'){
+      $old_crumbs = substr($old_crumbs, 24, strlen($old_crumbs)-30);
+      $crumbs = explode($separator, $old_crumbs);
+      $new_crumbs = '<div class="breadcrumb"><div class="breadcrumb-element">' . $crumbs[0] . '</div>';
+      $crumbs = array_slice($crumbs, 1);
+      foreach($crumbs as $crumb){
+          if (strlen($crumb)>0){
+            $new_crumbs = $new_crumbs . '<div class="breadcrumb-element">' . $separator . $crumb . '</div>';
+          }          
+      }
+      $new_crumbs = $new_crumbs . '</div>';
+      $vars['breadcrumb'] = $new_crumbs;
+  }
+  // ESTELLE - add base URL for Facebook tags
+  global $base_url;
+  $vars['base_url'] = $base_url;
+  
+  // ESTELLE - add direction in the classes
+  $vars['classes_array'][] = $vars['language']->dir ;
+  
+  // Get the depth
+  if ($vars['node'] && $vars['node']->type == "book"){
+    $vars['depth'] = $vars['node']->book['depth'];
+  }
+  // Find the vid for the Country vocabulary
+  $vocabularies = taxonomy_get_vocabularies();
+  if (!empty($vocabularies)){
+     foreach($vocabularies as $vocabulary) {
+         if ($vocabulary->name == "Country") {
+             $countriesvid = $vocabulary->vid;
+         }
+     }
+  }
+  // Get the country, to display in the facebook open graph tags
+  if ($countriesvid && $vars['node'] && $vars['node']->taxonomy){
+    foreach ($vars['node']->taxonomy as $oneterm){
+      $iscontry = $oneterm;
+      if($oneterm->vid == $countriesvid){
+          $vars['country'] = $oneterm->name;
+          break;
+      }
+    }
+  }
+    
 }
 
 /**
@@ -149,18 +199,49 @@ function internet_services_preprocess_node(&$vars, $hook) {
     $breadcrumb = '<div class="breadcrumb">';
     $separator = theme_get_setting('zen_breadcrumb_separator');
     foreach($trail as $link){
-        $node_url = $base_path . $link['href'];
+        if ($link['href'] == '<front>'){
+            $node_url = $base_path;
+        }else{
+            $node_url = $base_path . $link['href'];
+        }
         if($node_url != $vars['node_url']){
-            $breadcrumb = $breadcrumb . '<a href="' . $node_url . '">' . $link['title'] . '</a>' . $separator;
+            $breadcrumb = $breadcrumb . '<div class="breadcrumb-element"><a href="' . $node_url . '">' . $link['title'] . '</a>' . $separator . '</div>';
         }else{
             break;
         }
     }
     $vars['breadcrumb'] = $breadcrumb . '</div>';
   }
+  
+  // ESTELLE - add "report" link if the node has text
+  /*  $test4 = $vars['body'];
+  $test = mb_substr($test4, 0, strlen('<div'));
+  $testt = substr($test4, 0, 4);
+  $testbook = $test != '<div';
+  $test2 = isset($test4);
+  $test3 = empty($test4);
+  // WTF?????????????????????????
+  if (isset($vars['body']) && !empty($vars['body']) && $vars['body']!=null){
+    if (substr($vars['body'], 0, strlen('<div')) != '<div'){// if the body is empty or starts with div, the node has no text content
+       $vars['reportlink'] = '<div class="report links"><a href="' . $base_path . 'contribute">Report an error</a></div>';
+    }
+ }*/
+  
+  // ESTELLE - add comment link if needed
+  //$links = comment_links($vars['node'], $vars['teaser']); // edit, delete, reply -> not add!
+  $links = $vars['node']->links;
+  $link = $links['comment_add'];
+  $linkthemed = theme('links', array(0=>$link), array('class' => 'links'));
+  $vars['commentlink'] = $linkthemed;
+  //<li class="comment_add"><a href="/constitution_explorer_6/comment/reply/179#comment-form" title="Share your thoughts and opinions related to this posting.">Add new comment</a></li>
+  
+  // expose facebook Like button if needed
+  if ($vars['page']){
+      $vars['like_button'] = $node->like_button;
+  }
 }
 
-/**
+/** ESTELLE
  * Override or insert variables into the comment templates.
  *
  * @param $vars
@@ -168,9 +249,12 @@ function internet_services_preprocess_node(&$vars, $hook) {
  * @param $hook
  *   The name of the template being rendered ("comment" in this case.)
  */
-/* -- Delete this line if you want to use this function
-function internet_services_preprocess_comment(&$vars, $hook) {
-  $vars['sample_variable'] = t('Lorem ipsum.');
+function internet_services_preprocess_comment_wrapper(&$vars, $hook) {
+  $links = $vars['node']->links;
+  $link = $links['comment_add'];
+  $linkthemed = theme('links', array('comment_add'=>$link), array('class' => 'links inline'));
+  $vars['addcommentlink'] = $linkthemed;
+     
 }
 // */
 
@@ -281,7 +365,8 @@ function internet_services_preprocess_views_exposed_form(&$vars, $hook)
  *
  * The $variables array contains the following arguments:
  * - $book_link
- *
+ * - added by Estelle : $page (if node is full page)
+ * 
  * @see book-navigation.tpl.php
  */
 function internet_services_preprocess_book_navigation(&$variables) {
@@ -294,7 +379,8 @@ function internet_services_preprocess_book_navigation(&$variables) {
   $variables['current_depth'] = $book_link['depth'];
   $variables['tree'] = '';
 
-  if ($book_link['mlid']) {
+  // ESTELLE - all this piece is to fill in $variables['tree'] which I'm not using in templates. TODO try commenting out to see if breaks.
+  /*if ($book_link['mlid']) {
     $variables['tree'] = book_children($book_link);
 
     if ($prev = book_prev($book_link)) {
@@ -318,7 +404,7 @@ function internet_services_preprocess_book_navigation(&$variables) {
       $variables['next_title'] = check_plain($next['title']);
     }
   }
-
+   
   $variables['has_links'] = FALSE;
   // Link variables to filter for values and set state of the flag variable.
   $links = array('prev_url', 'prev_title', 'parent_url', 'parent_title', 'next_url', 'next_title');
@@ -332,14 +418,21 @@ function internet_services_preprocess_book_navigation(&$variables) {
       $variables[$link] = '';
     }
   }
+  */
   
-  // ESTELLE added
-  if ($book_link['mlid']) {
-      $variables['treenodes'] = book_children_nodes($book_link);
+  // ESTELLE added : fill in $variables['treenodes'] with book children if necessary.
+  if ($variables['page'] && $book_link['mlid'] && $book_link['has_children']) {
+          $variables['treenodes'] = book_children_nodes($book_link);
+  }else{ // don't display children, but display "more..." if has children.
+      if ($book_link['has_children']){
+        $variables['read_more'] = '<ul class="links"><li class="read-more"><a href="' . base_path() . $book_link['href'] .'">'. t('See articles...') . '</a></li></ul>';
+      }
   }
-  
+  // just in case
   $variables['has_children'] = $book_link['has_children'];
   $variables['node_id'] = $book_link['nid'];
+  $variables['reportlink'] = '<div class="report links"><a href="' . base_path() . 'contribute">' . t('Report an error') .'</a></div>';
+
 }
 
 /* get children nodes */
@@ -445,6 +538,7 @@ function internet_services_print_terms($node, $vname = NULL, $labels = TRUE, $se
      return $output;
 }
 
+// ESTELLE  - render the tags to display in nodes
 function render_vocabulary($terms, $vocabulary, $labels, $separator){
   $output = '';
   if ($terms) {
@@ -456,6 +550,9 @@ function render_vocabulary($terms, $vocabulary, $labels, $separator){
      $output .= '<div class="field-items">';
      foreach ($terms as $term) {
         $links[] = '<div class="field-item">' . l($term->name, taxonomy_term_path($term), array('rel' => 'tag', 'title' => strip_tags($term->description))) .'</div>';
+        /*$links[] = '<div class="field-item">' . l($term->name, 'search',      
+           array( 'query' => 'body=&body_1=&tid=' . str_replace(" ","+",$term->name) , 'attributes' => array('title' => t('See articles with this term'))) //'class' => 'xxx',
+           ) .'</div>';*/
      }
      $output .= implode($separator, $links);
      $output .= '</div>';//terms
