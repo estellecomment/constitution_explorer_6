@@ -140,6 +140,13 @@
     border-top-width: 1px;
 }
 
+.book-navigation a.page-up {
+    margin: 0 5%;
+    width: 20%;
+    display: block;
+    float: right;
+}
+
 /*************************
     SEARCH VIEW
 *************************/

@@ -368,7 +368,7 @@ function internet_services_preprocess_views_exposed_form(&$vars, $hook)
  * - added by Estelle : $page (if node is full page)
  * 
  * @see book-navigation.tpl.php
- */
+ *
 function internet_services_preprocess_book_navigation(&$variables) {
   $book_link = $variables['book_link'];
 
@@ -420,7 +420,7 @@ function internet_services_preprocess_book_navigation(&$variables) {
   }
   */
   
-  // ESTELLE added : fill in $variables['treenodes'] with book children if necessary.
+  /*// ESTELLE added : fill in $variables['treenodes'] with book children if necessary.
   if ($variables['page'] && $book_link['mlid'] && $book_link['has_children']) {
           $variables['treenodes'] = book_children_nodes($book_link);
   }else{ // don't display children, but display "more..." if has children.
@@ -433,7 +433,7 @@ function internet_services_preprocess_book_navigation(&$variables) {
   $variables['node_id'] = $book_link['nid'];
   $variables['reportlink'] = '<div class="report links"><a href="' . base_path() . 'contribute">' . t('Report an error') .'</a></div>';
 
-}
+}*/
 
 /* get children nodes */
 function book_children_nodes($book_link){
