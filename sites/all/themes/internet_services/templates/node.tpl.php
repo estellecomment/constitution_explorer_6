@@ -51,10 +51,14 @@
 
 <?php print $picture ?>
     
+  <?php if ($page): ?>
+    <?php print internet_services_print_terms($node, $vname = 'Tags', $labels = TRUE);?>
+  <?php endif;?>
+    
 <?php if ($type == 'book' && $page) : ?>
     <?php print $links; ?>
 <?php endif;?>
-
+    
 <?php if (!$page): ?>
     <?php /* EXTRA BREADCRUMBS HERE*/?>
     <?php if($type == 'book' && !$page && $teaser){
@@ -80,17 +84,17 @@
      ?>
  <?php /* <a href="<?php print $node_url ?>" title="<?php print $title ?>"><?php print $title ?></a></h2 */?>
 <?php endif; ?>
-
+    
+  <?php if (!$page): ?>
+    <?php print internet_services_print_terms($node, $vname = 'Tags', $labels = TRUE);?>
+  <?php endif;?>
+    
   <div class="meta">
   <?php if ($submitted): ?>
     <span class="submitted"><?php print $submitted ?></span>
   <?php endif; ?>
 
   <?php /*ADD REPORT LINK HERE*/?>
-    
-  <?php if ($terms): ?>
-    <?php print internet_services_print_terms($node, $vname = 'Tags', $labels = TRUE);?>
-  <?php endif;?>
   </div>
 
   <?php if ($page): ?>
