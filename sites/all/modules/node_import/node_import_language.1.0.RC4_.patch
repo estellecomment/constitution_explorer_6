@@ -1,0 +1,104 @@
+--- node.inc.1.0.RC4	2009-09-15 11:52:57.000000000 +0200
++++ node.inc	2009-09-15 11:53:13.000000000 +0200
+@@ -158,7 +158,16 @@ function node_node_import_fields($type) 
+       'output_format' => DATE_UNIX,
+     );
+ 
+-    //TODO: language
++    if (module_exists('locale')) {
++      $fields['language'] = array(
++        'title' => t('Language'),
++        'module' => 'node',
++        'weight' => 2,
++        'input_format' => 'language',
++        'has_multiple' => FALSE,
++        'has_hierarchy' => FALSE,
++      );
++    }
+ 
+     $fields['log'] = array(
+       'title' => t('Log message'),
+@@ -199,6 +208,41 @@ function node_node_import_fields($type) 
+ }
+ 
+ /**
++ * Implementation of hook_node_import_fields_alter().
++ */
++function node_node_import_fields_alter(&$fields, $type) {
++  foreach ($fields as $fieldname => $fieldinfo) {
++    if ($fieldinfo['input_format'] == 'language') {
++      $fields[$fieldname]['preprocess'][] = 'node_import_check_language';
++    }
++  }
++}
++
++/**
++ * Check if the supplied value for the language field is a valid language.
++ */
++function node_import_check_language(&$value, $field, $options, $preview, $op = 'lookup') {
++  if (!module_exists('locale')) {
++    return TRUE;
++  }
++  foreach(language_list() as $code => $data) {
++    // allow use of language code
++    if ($value == $code) {
++      return TRUE;
++    }
++    // allow use of english or native language name
++    if ($value == $data->name || $value == $data->native) {
++      return TRUE;
++    }
++    // allow use of language name translated into current language
++    if ($value == t($data->name)) {
++      return TRUE;
++    }
++  }
++  return FALSE;
++}
++
++/**
+  * Implementation of hook_node_import_defaults().
+  */
+ function node_node_import_defaults($type, $defaults, $fields, $map) {
+@@ -209,6 +253,20 @@ function node_node_import_defaults($type
+ 
+     $type_info = node_get_types('type', $node_type);
+ 
++    if (module_exists('locale')) {
++      $languages = array('' => t('- None -'));
++      foreach(language_list() as $lang => $data) {
++        $languages[$lang] = t($data->name);
++      }
++      $form['language'] = array(
++        '#title' => t('Language'),
++        '#type' => 'select',
++        '#default_value' => '',
++        '#options' => $languages,
++        '#description' => t('Choose a language'),
++      );
++    }
++
+     if ($type_info->has_body) {
+       $form['format'] = array(
+         '#title' => t('Input format'),
+@@ -293,6 +351,20 @@ function node_node_import_values_alter(&
+     if (isset($values['created']) && drupal_strlen($values['created']) > 0) {
+       $values['date'] = format_date($values['created'], 'custom', 'Y-m-d H:i:s O');
+     }
++
++    if (module_exists('locale') && isset($values['language'])) {
++      $language = $values['language'];
++      foreach(language_list() as $code => $data) {
++        if ($language == $data->name || $language == $data->native) {
++          $values['language'] = $code;
++          break;
++        }
++        elseif ($value == t($data->name)) {
++          $values['language'] = $code;
++          break;
++        }
++      }
++    }
+   }
+ }
+ 

@@ -1,0 +1,34 @@
+/**
+ * @file
+ * RTL companion for the pages.css file.
+ */
+
+
+/*
+ * Header
+ */
+#logo /* Wrapping link for logo */ {
+  float: right;
+  margin: 15px 10px 10px 0;
+}
+
+#name-and-slogan /* Wrapper for website name and slogan */ {
+  float: right;
+  margin: 15px 10px 20px 0;
+}
+
+/*.i18n-ar #name-and-slogan {*/
+.rtl #name-and-slogan {
+      padding-right:20px;
+}
+
+/*
+ * Content
+ */
+.more-help-link /* Link to more help */ {
+  text-align: left;
+}
+
+.more-link /* Aggregator, blog, and forum more link */ {
+  text-align: left;
+}
