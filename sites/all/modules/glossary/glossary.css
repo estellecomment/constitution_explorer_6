@@ -365,3 +365,13 @@ background: #E0691A; /*#E0E0E0;*/
 VISIBILITY: visible;
 cursor: pointer;
 }
+
+/* Estelle : disable the hovering info when there is no description to the term */
+.node span.no-description  {
+    border-bottom: none;
+    cursor: text;
+}
+.node span.no-description abbr {
+    cursor : text;
+    border-bottom: none;
+}

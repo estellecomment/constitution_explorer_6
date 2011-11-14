@@ -493,9 +493,12 @@ function _glossary_filter_process($format, $text) {
       // Let's try to get Drupal to show non-Latin letters right.
       $linkto = decode_entities($linkto);
 
+      // ESTELLE : add a special class if the term has a description. (to disable viewing of terms without description through CSS.)
+      $has_description = $term_title ? " has-description " : " no-description ";
       switch ($replace_mode) {
         case 'superscript':
-          $ins_after = '<sup class="glossary-indicator" title="'. check_plain($term_title) .'">';
+//          $ins_after = '<sup class="glossary-indicator" title="'. check_plain($term_title) .'">';
+          $ins_after = '<sup class="glossary-indicator' . $has_description . '" title="'. check_plain($term_title) .'">';
           if ($link_style == 'none') {
             $ins_after .= variable_get("glossary_superscript_$format", 'i');
           }
@@ -509,11 +512,13 @@ function _glossary_filter_process($format, $text) {
 
         case 'abbr':
           if ($link_style == 'none') {
-            $ins_before .= '<span class="'. $term_class .'" title="'. $term_title .'"><'. $replace_mode .' title="'. $term_title .'">';
+//            $ins_before .= '<span class="'. $term_class .'" title="'. $term_title .'"><'. $replace_mode .' title="'. $term_title .'">';
+            $ins_before .= '<span class="'. $term_class . $has_description . '" title="'. $term_title .'"><'. $replace_mode .' title="'. $term_title .'">';
             $ins_after .= '</'. $replace_mode .'></span>';
           }
           else {
-            $ins_before .= '<'. $replace_mode .' title="'. $term_title .'"><a class="'. $term_class .'" href="'. url($linkto, array('fragment' => $fragment, 'absolute' => $absolute_link)) .'">';
+//            $ins_before .= '<'. $replace_mode .' title="'. $term_title .'"><a class="'. $term_class .'" href="'. url($linkto, array('fragment' => $fragment, 'absolute' => $absolute_link)) .'">';
+            $ins_before .= '<'. $replace_mode .' title="'. $term_title .'"><a class="'. $term_class . $has_description . '" href="'. url($linkto, array('fragment' => $fragment, 'absolute' => $absolute_link)) .'">';
             $ins_after .= '</a></'. $replace_mode .'>';
           }
           break;
@@ -529,7 +534,8 @@ function _glossary_filter_process($format, $text) {
             $ins_after .= '</'. $replace_mode .'>';
           }
           else {
-            $ins_before .= '<a class="glossary-term" href="'. url($linkto, array('fragment' => $fragment, 'absolute' => $absolute_link)) .'">';
+//            $ins_before .= '<a class="glossary-term" href="'. url($linkto, array('fragment' => $fragment, 'absolute' => $absolute_link)) .'">';
+            $ins_before .= '<a class="glossary-term' . $has_description . '" href="'. url($linkto, array('fragment' => $fragment, 'absolute' => $absolute_link)) .'">';
             $ins_after .= '</'. $replace_mode .'></a>';
           }
           $ins_before .= '<'. $replace_mode .' title="'. $term_title .'">';
@@ -540,12 +546,14 @@ function _glossary_filter_process($format, $text) {
             $ins_after .= '</span>';
           }
           else {
-            $ins_before = '<a class="'. $term_class .'" href="'.
+//            $ins_before = '<a class="'. $term_class . '" href="'.
+            $ins_before = '<a class="'. $term_class . $has_description . '" href="'.
               url($linkto, array('fragment' => $fragment, 'absolute' => $absolute_link)) .'">';
             $ins_after .= '</span></a>';
           }
           $ins_before .= '<span>';
-          $ins_after .= '<span class="hovertip">'. $term->image . $term_title .'</span>';
+//          $ins_after .= '<span class="hovertip">'. $term->image . $term_title .'</span>';
+          $ins_after .= '<span class="hovertip' . $has_description . '">'. $term->image . $term_title .'</span>';
           break;
 
         default:
@@ -556,7 +564,8 @@ function _glossary_filter_process($format, $text) {
           }
           else {
             $ins_after = l($img, $linkto,
-              array('attributes' => array('title' => $term_title, 'class' => 'glossary-icon'),
+//              array('attributes' => array('title' => $term_title, 'class' => 'glossary-icon'),
+              array('attributes' => array('title' => $term_title, 'class' => 'glossary-icon' . $has_description),
               'fragment' => $fragment, 'absolute' => $absolute_link, 'html' => TRUE));
           }
           break;
