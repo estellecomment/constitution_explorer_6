@@ -30,7 +30,6 @@
     <div class="editlink" style="float:right">[<?php print $edit_link ?>]</div>
   <?php endif ?>
 
-
     <?php print internet_services_print_terms($node, $vname = 'Tags', $labels = TRUE);?>
     
   <h2 class="book-heading"><?php print $title; ?></h2>

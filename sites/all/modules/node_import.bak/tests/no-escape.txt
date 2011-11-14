@@ -1,2 +1,0 @@
-%title%|%description%
-%Book%|%Book description goes here...%

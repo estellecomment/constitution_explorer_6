@@ -1,1 +1,5 @@
 sites/default/settings.php
+*.bak
+*.orig
+imports
+
