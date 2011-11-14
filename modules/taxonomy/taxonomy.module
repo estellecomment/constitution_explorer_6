@@ -687,9 +687,6 @@ function taxonomy_node_save($node, $terms) {
 
         if (!$typed_term_tid) {
           $edit = array('vid' => $vid, 'name' => $typed_term);
-          // ESTELLE - edit for Import Content to assign the right language to the tag.
-          // this only happens for new tags, created through editing a node.
-          if(!$edit['language'] && $node->language){$edit['node_language'] = $node->language;}
           $status = taxonomy_save_term($edit);
           $typed_term_tid = $edit['tid'];
         }

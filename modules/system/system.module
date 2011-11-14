@@ -1942,6 +1942,6 @@ function system_check_http_request() {
  * @ingroup themeable
  */
 function theme_system_powered_by($image_path) {
-  $image = theme('image', $image_path, t('Powered by Drupal, an open source content management system'), t('Powered by Drupal, an open source content management system'));
-  return l($image, 'http://drupal.org', array('html' => TRUE, 'absolute' => TRUE, 'external' => TRUE));
+  $image = theme('image', $image_path, t('Powered by BitNami Drupal, an open source content management system'), t('Powered by BitNami Drupal, an open source content management system'));
+  return l($image, 'http://bitnami.org/stack/drupal', array('html' => TRUE, 'absolute' => TRUE, 'external' => TRUE));
 }

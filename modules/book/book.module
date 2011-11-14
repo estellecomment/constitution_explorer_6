@@ -11,7 +11,7 @@
 function book_theme() {
   return array(
     'book_navigation' => array(
-      'arguments' => array('book_link' => NULL, 'page' => NULL),// ESTELLE
+      'arguments' => array('book_link' => NULL),
       'template' => 'book-navigation',
     ),
     'book_export_html' => array(
@@ -666,7 +666,7 @@ function book_nodeapi(&$node, $op, $teaser, $page) {
         if (!empty($node->book['bid']) && $node->build_mode == NODE_BUILD_NORMAL) {
 
           $node->content['book_navigation'] = array(
-            '#value' => theme('book_navigation', $node->book, $page),//ESTELLE
+            '#value' => theme('book_navigation', $node->book),
             '#weight' => 100,
           );
 
