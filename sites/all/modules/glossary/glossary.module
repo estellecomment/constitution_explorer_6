@@ -949,7 +949,7 @@ function glossary_overview($vocab, $letter = NULL) {
   // ESTELLE - add the toc and a little explanation about the page
   $toc = $toc . '</div></div>'; // close glossary-toc and content
   $output = $toc . $output;
-  $output = '<div id="subtitle">The constitution articles are tagged by topic. Click on any of the tags below to see the related articles. Alternatively, you can try ' . l(t('searching'), 'search') . ' in the text of constitutions.</div>' . $output;
+  $output = '<div id="subtitle">' . t('The constitution articles are tagged by topic. Click on any of the tags below to see the related articles. Alternatively, you can try ') . l(t('searching'), 'search') . t(' in the text of constitutions.') . '</div>' . $output;
   return glossary_admin_links($vocab, $dest) . $output;
 }
 
@@ -1048,7 +1048,7 @@ function theme_glossary_overview_item($term, $show_desc = TRUE, $destination = N
       $parenttid = $term->parents[0];
       if ($parenttid != 0){
         $parentname = taxonomy_get_term($parenttid)->name;
-        $output .= l('Back to ' . $parentname, 'glossary/'. $vid, array('fragment' => 'term' . $parenttid, 'attributes' => array('class' => 'backtotop')));
+        $output .= l(t('Back to ') . $parentname, 'glossary/'. $vid, array('fragment' => 'term' . $parenttid, 'attributes' => array('class' => 'backtotop')));
       }
   }
   // ESTELLE - markup change
