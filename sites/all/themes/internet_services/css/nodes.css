@@ -150,6 +150,11 @@
 .node-page .content .section-3 {
     border-bottom: 1px solid #EAEAEA;
 }
+.node-page .content .section-4 {
+    border-bottom: 1px solid #EAEAEA;
+    padding-bottom: 25px;
+    padding-top: 15px;
+}
 
 .node-page .content .section-4 .book-heading{
     font-size: 110%;
@@ -185,10 +190,12 @@
     display: inline;
 }
 
-.node-page .content .field-name-field-tags {
+ .field-name-field-tags {
     float: right;
+    max-width: 330px;
+    background-color: whiteSmoke;
+    margin-left: 15px;
+    text-align: center;
+    padding: 8px;
 }
 
-.node-page .field-name-field-tags {
-    text-align: right;
-}
