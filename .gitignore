@@ -1,2 +1,4 @@
 sites/default/settings.php
 sites/default/files/imports
+.htaccess
+sites/default/files/.htaccess
