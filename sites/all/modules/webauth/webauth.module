@@ -1,0 +1,1115 @@
+<?php
+// $Id: webauth.module 1806 2010-03-18 16:32:08Z ksharp $
+
+/**
+ * @file
+ * Authenticates users through Stanford WebAuth
+ *
+ */
+
+// Added "" to the href so that code would validate - Lance Simms 8/14/08
+define('WORKGROUP_MSG','Learn more about Stanford Workgroups <a href="https://www.stanford.edu/dept/as/mais/applications/workgroup/index.html">here.</a>');
+
+function logit($msg) {
+
+	// keep a log of webauth activity
+	$fh = fopen("webauth_logs/webauth_".date("YMd").".log", 'a');
+	if ($fh != FALSE) {
+		fwrite($fh, $msg.chr(13).chr(10));
+		fclose($fh);
+	}
+}
+
+// this is a custom "drupal hook" which allows users to create their own 
+// login link; either the default ('webauth/wa_login.php' with the return destination
+// in a cookei) or with an explicit return node ($overrideNode != null so that the
+// link is for 'webauth/wa_login.php?wa_dest=<overridenode>')
+// invoked from a Drupal php node with: module_invoke('webauth','login_url',<override node>|NULL)
+
+function webauth_login_url($overrideNode = NULL) {
+
+	$url = build_login_url();  // call the internal login url routine
+	// override if necessary
+	if (isset($overrideNode)) $url .= '?wa_dest='.$overrideNode;
+	return $url;
+
+}
+
+// build a link to wa_login. include the query string which gets returned to us,
+// the virtual host name if drupal is running via proxy, which does not get returned
+// and the keyname for Drupal's session id, which also does not get returned.
+
+function build_login_url($forceNode = NULL) {
+        global $base_url;
+
+        $my_base = $base_url;
+        if (!$base_url) {
+                $my_base = variable_get('webauth_base','/');
+        }
+	if (strtolower(substr($my_base,0,5)) != 'https') {
+		$my_base = 'https'.substr($my_base,4);
+	}
+
+	// here's the URL of the WebAuth proteted login page
+        $wa_url = $my_base.'/webauth/wa_login.php';
+
+	// add back on any other query parameters in the original request
+	$newquery = '';
+	foreach ($_GET as $key => $value) {
+		if (strlen($newquery) > 0) $newquery .= '&';
+		$newquery .= $key . '=' . drupal_urlencode($value);
+	}
+
+	// figure out our return destination and save to a cookie for later consumption
+	
+	$returnDest = '';
+	$wa_dest = trim(variable_get('webauth_destination',''));
+	if (isset($_REQUEST['destination']) && strcmp($_REQUEST['destination'],'admin') == 0) {
+		$returnDest = $_REQUEST['destination'];
+	} elseif ($forceNode != NULL) {
+		$returnDest = $forceNode;
+	} elseif (strlen($wa_dest) > 0) {
+		$returnDest = $wa_dest;
+	} elseif (isset($_REQUEST['q']) and strcmp($_REQUEST['q'],'user/login') != 0) {
+		$returnDest = $_REQUEST['q'];
+	}
+
+	$cookiename = session_name() .'_WMDPOST';
+	$set_cookie = true;
+	if (isset($_COOKIE[$cookiename]) && $_COOKIE[$cookiename] == $returnDest) {
+		$set_cookie = false;
+	}
+	
+	if ($set_cookie) {
+		global $cookie_domain;
+		wmdWriteCookie($cookiename, $returnDest, 0, '/', $cookie_domain, FALSE, TRUE);
+	}
+
+        return $wa_url;
+}
+
+// returns the webauth app cookie - either the original webauth_at cookie provided by weblogin
+// or the wa_at copy we make if drupal is running under a virtual host name via proxy server
+
+function get_at_cookie() {
+
+	global $wa_session;
+
+	$at_cookie = NULL;
+        if ($_COOKIE['webauth_at']) {
+        	$at_cookie = $_COOKIE['webauth_at'];
+	} elseif ($wa_session['wa_crypt']) {
+		$fp = fopen("./webauth/.pkey","r");
+		$priv_key=fread($fp,8192);
+		fclose($fp);
+		$res = openssl_get_privatekey($priv_key);
+		if (openssl_private_decrypt(rawurldecode($wa_session['wa_crypt']),$wa_at,$res)) {
+			wmdWriteCookie('wa_at',$wa_at,0,'/',NULL,TRUE,TRUE);
+			$at_cookie = $wa_at;
+		}
+		unset($wa_session['wa_crypt']);
+		wmdSessionWrite(session_name(), $wa_session);
+        } elseif ($_COOKIE['wa_at']) {
+        	$at_cookie = $_COOKIE['wa_at'];
+        }
+	return $at_cookie;
+}
+
+// main routine which intercepts requests for the drupal login screen and
+// redirects the browser to WebAuth, and also processes freturns from WebAuth.
+
+function webauth_init() {
+
+	if (variable_get('webauth_nossl',FALSE)) return;
+
+	// if we are running behind a proxy server, save the xhost value in our drupal variables
+	if (isset($_SERVER['HTTP_X_FORWARDED_HOST']) && strcmp($_SERVER['HTTP_X_FORWARDED_HOST'],variable_get('webauth_xhost','')) != 0) {
+		variable_set('webauth_xhost',$_SERVER['HTTP_X_FORWARDED_HOST']);
+	}
+
+	global $wa_session;
+	include_once(drupal_get_path('module','webauth').'/wa_session.inc');
+	$wa_session = wmdSessionRead(session_name());
+
+	// get Drupal's base url, either from settings.php or from a value this module calculated on installation
+	global $user;
+	global $base_url;
+
+	$my_base = $base_url;
+	if (!$base_url) {
+		$my_base = variable_get('webauth_base','/');
+	}
+
+	// get the request's query string (everything after the '?' in the url)
+	$q = $_SERVER["QUERY_STRING"];
+	
+	// see if current user is a stanford user (userid name ends with '@stanford.edu')
+	$sunet_user = FALSE;
+	if ($user->uid != 0) {
+		$sunet_user = (substr($user->name,-13) === '@stanford.edu');
+	} else {
+		build_login_url();  // make sure an appropriate post-destination cookie is set for wmd login
+	}
+	
+	// if user is logged in and is a Stanford user, make sure the request is
+	// secure. If not, redirect to https
+	
+	if ($sunet_user) {
+                if (!$_SERVER['HTTPS']) {
+			$myurl = $my_base;
+			if (strtolower(substr($my_base,0,5)) != 'https') {
+				$myurl = 'https'.substr($my_base,4);
+			}
+			drupal_goto($myurl,$_SERVER['QUERY_STRING']);
+			//header('Location: '.$myurl.'?'.$_SERVER['QUERY_STRING'], TRUE, 302);
+			return;
+		} else {
+			header("Expires: Sun, 19 Nov 1978 05:00:00 GMT");
+			header("Cache-Control: no-store, no-cache, must-revalidate");
+		}
+
+	}
+
+	// if the user has requested a login...
+	if (substr($q,0,12) == "q=user/login") {
+
+		// find out if we are also allowing local logins
+		$allow_local = variable_get('webauth_allow_local', TRUE);
+
+		// is user coming back from Stanford weblogin page?
+		// if so, our session should contain a wa_data array 
+		// with its wa_new field set to TRUE
+
+		if ($wa_session['wa_data']['wa_new']) {
+
+			unset($wa_session['wa_data']['wa_new']);
+			wmdSessionWrite(session_name(), $wa_session);
+
+			// complete the Drupal login process using the webauth_at cookie value as the password
+			// the webauth_auth hook will be called automatically and will
+			// verify that the provided credential is valid.
+			$form_state = array();
+			$form_state['values']['name'] = $wa_session['wa_data']['wa_user']; //.'@stanford.edu';
+			$form_state['values']['pass'] = 'dummy'; //we'll use webauth instead of a password here
+			$form_state['weblogin']['server'] = 'stanford.edu';
+			drupal_execute('user_login', $form_state);
+			return;
+		}		
+		
+		// if we reached this point, the user is now requesting a new login
+		// if we don't allow local logins (and if the Drupal administrator isn't overriding)
+		// then redirect the user's browser to our weblogin page. Include the query string, which
+		// will be returned to us, and also include the virtual host name if we got here by proxy,
+		// which will not be returned to us.
+
+		if (!$allow_local && ((!isset($_REQUEST['destination'])) || (strcmp($_REQUEST['destination'],'admin') != 0))) { 
+
+			$wa_url = build_login_url();
+			drupal_goto($wa_url);
+			return;
+
+		} else {
+
+			// we allow local logins, let Drupal go on its merry way...
+
+		}
+
+	} elseif ($sunet_user) {
+
+		// user is currently logged in as SUNet user; make sure their credential is still valid
+		$okay = FALSE;
+		$at_cookie = get_at_cookie();
+
+		if ($at_cookie) {
+			$okay = checkCredential(substr($user->name,0,strpos($user->name,"@")), $at_cookie);
+		}
+
+		if (!$okay) {
+			// user is not okay. log out the user.
+ 			session_destroy();
+ 			$null - NULL;
+ 			user_module_invoke('logout', $null, $user);
+ 			$user = drupal_anonymous_user();
+		} else {
+			// user is okay. let Drupal continue on its merry way...
+		}
+
+	} else {
+
+		// user is either anonymous or logged in locally
+		// let Drupal go on its merry way...
+		if (isset($wa_session['wa_data'])) {
+			unset($wa_session['wa_data']);
+			wmdSessionWrite(session_name(),$wa_session);
+		}
+	}
+
+}
+
+function webauth_menu() {
+
+     // set up Drupal 'menu' settings for the WebAuth module including its config 'form'
+     $items = array();
+     $items['admin/settings/webauth'] = array(
+	'title' => 'WebAuth settings',
+	'description' => 'Authenticate through Stanford WebAuth',
+	'page callback' => 'drupal_get_form',
+	'page arguments' => array('webauth_admin_settings'),
+	'access arguments' => array('administer site configuration'),
+	'type' => MENU_NORMAL_ITEM
+     );
+     return $items;
+
+}
+
+// check if the user being requested and his/her webauth_at cookie match the currently logged in user
+// if so, return true, if not, return false and wipe the current user info from the session
+// (also, if the userid and creds match, but the credential has expired, return false
+
+function checkCredential($user, $cred) {
+      
+	global $wa_session;
+
+	$okay = FALSE;
+	if ($wa_session['wa_data']) {
+		if ($wa_session['wa_data']['wa_user'] === $user &&
+			$wa_session['wa_data']['wa_at'] === md5($cred)) {
+				$okay = (time() < $wa_session['wa_data']['wa_token_expiration']);
+		}
+	}
+	return $okay;
+}
+
+// give the drupal administrator the ability to hide the regular login forms with this radio button set 
+// that will show up on the configuration screen.
+
+function webauth_admin_settings() {
+	if (variable_get('webauth_nossl',FALSE)) return;
+	$defValue = variable_get('webauth_allow_local', 1);
+	$form['webauth_allow_local'] = array(
+		'#type' => 'radios',
+		'#title' => t('Stanford WebAuth options'),
+		'#default_value' => $defValue,
+		'#options' => array(0 => t('Hide Local Drupal Accounts'), 1 => t('Allow Local Drupal Accounts')),
+		'#description' => t('Hide Local Drupal Accounts will allow users to only login through Stanford WebLogin.'),
+	);
+	$form['webauth_link_text'] = array(
+		'#type' => 'textfield',
+		'#title' => t('WebLogin Link Text'),
+		'#size' => 80, '#maxlength' =>255,
+		'#default_value' => variable_get('webauth_link_text','SUNetID Users'),
+		'#description' => t('The text which is displayed as the link to the WebLogin page for SUNetID users.')
+	);
+	$form['webauth_destination'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Post-Login Destination'),
+		'#size' => 80, '#maxlength' => 255,
+		'#default_value' => variable_get('webauth_destination', ''),
+		'#description' => t('Drupal node to which the browser redirects after successful weblogin. (Ex: \'node/add/page\' will automatically redirect user to a new content page.) If unsure, just leave blank to keep Drupal\'s default behavior.')
+	);
+	
+	$defValue3 = variable_get('webauth_autologin', 0);
+	$form['webauth_autologin'] = array(
+		'#type' => 'radios',
+		'#title' => t('WebAuth Auto-Login'),
+		'#default_value' => $defValue3,
+		'#options' => array(0 => t('Disable WebAuth Auto-Login'), 1 => t('Enable Webauth Auto-Login')),
+		'#description' => t('Enable or Disable WebAuth Auto-Login feature. When enabled, option for auto-login appears on node-edit page.'),
+	);
+
+	$defValue2 = variable_get('webauth_restrict', 0);
+        $form['webauth_restrict'] = array(
+		'#type' => 'radios',
+                '#title' => t('Node Access Restrictions'),
+		'#default_value' => $defValue2,
+                '#options' => array(0 => t('Disable Node Access Restrictions'), 1 => t('Enable Node Access Restrictions')),
+                '#description' => t('Enable or Disable WebAuth-based node access restrictions for Drupal roles and Stanford Workgroups'),
+        );
+
+	$form['webauth_restrict_message'] = array(
+		'#type' => 'textarea',
+		'#title' => t('Restricted Access Message'),
+		'#default_value' => variable_get('webauth_restrict_message', ''),
+		'#description' => t('Message to be displayed to user when access to content is restricted.'),
+	);
+
+	$ldapDescription = 'Credential cache is needed for restricting content access based on Stanford Workgroup membership. Example: "/opt/www/apache/conf/webauth/krb5cc_ldap"<br />';
+	$ldapDescription .= WORKGROUP_MSG;
+	$form['webauth_ldap_cred'] = array(
+		'#type' => 'textfield',
+		'#title' => t('LDAP Credential Cache Location'),
+		'#size' => 80, 
+		'#maxlength' => 255,
+		'#default_value' => variable_get('webauth_ldap_cred', NULL),
+		'#description' => t($ldapDescription));
+
+           $form['webauth_ldap_test'] = array(
+                '#type' => 'fieldset',
+                '#title' => t('Test LDAP Connection'),
+                '#collapsible' => FALSE,
+                '#collapsed' => FALSE,
+                '#description' => t('Enter a SUNetID and a Stanford Workgroup in the boxes below to test LDAP connectivity.'));
+
+           $form['webauth_ldap_test']['tstLDAPuserid'] = array(
+		'#type' => 'textfield',
+		'#title' => 'SUNetID',
+                '#default_value' => variable_get('tstLDAPuserid', NULL),
+                '#size' => 20,
+		'#maxlength' => 255);
+
+           $form['webauth_ldap_test']['tstLDAPgroup'] = array(
+                '#type' => 'textfield',
+		'#title' => 'Stanford Workgroup',
+		'#default_value' => variable_get('tstLDAPgroup', NULL),
+                '#size' => 20,
+                '#maxlength' => 255);
+		
+	$form['#validate'] = array('validateWebAuthAdmin');
+
+	return system_settings_form($form);
+}
+
+function validateWebAuthAdmin($form_id, &$form_state) {
+
+	$form_values = $form_state['values'];
+	if (strlen($form_values['webauth_ldap_cred']) > 0 && strlen($form_values['tstLDAPuserid']) > 0 &&
+		strlen($form_values['tstLDAPgroup'])) {
+			$ldap_error = '';
+			$ldapok = ldap_sugroup_compare($form_values['tstLDAPuserid'], 
+							array($form_values['tstLDAPgroup']),
+							$form_values['webauth_ldap_cred'], $ldap_error);
+			if (strlen($ldap_error) > 0) {
+				form_set_error('webauth_ldap_cred','Unable to check Stanford workgroup membership using this LDAP credential. Error: '.$ldap_error);
+			} else {
+				if ($ldapok) {
+					$contains = ' does not contain';
+				} else {
+					$contains = ' contains';
+				}
+				drupal_set_message('Successfully connected to LDAP! Stanford workgroup '.$form_values['tstLDAPgroup'] . $contains . ' SUNetID '. $form_values['tstLDAPuserid']);
+			}
+	} else {
+		drupal_set_message('No LDAP test performed.');
+	}
+}
+
+// drupal calls this function to "authenticate" an external user after posting the login screen.
+// it will get called when we call 'drupal_execute' of the login screen (above)
+// it verifies the user credentials, then continues on its way.
+
+function webauth_auth($form, &$form_state) { 
+	
+	global $wa_session;
+
+	$username = $form_state['values']['name'];
+	$password = $form_state['values']['pass'];
+	$server = $form_state['weblogin']['server'];
+
+	// we're going to call the webauth protected wa_check.php
+	// using our webauth_at cookie and compare the response to 
+	// the credential info in our session
+
+	// make sure we have open ssl enabled
+	if (variable_get('webauth_nossl',FALSE)) return FALSE;
+
+	// make sure we have a webauth_at cookie - either the original set by webauth or the copy
+	// we made if drupal is running under a virtual host name via proxy
+	$at_cookie = get_at_cookie();
+
+	// does our webauth_at cookie match the value stored in the session?
+	// if not, return false
+	if (!($wa_session['wa_data']['wa_at'] === md5($at_cookie))) { 
+		drupal_set_message('Unable to authenticate because of missing or incorrect webauth credential.','error');
+		return FALSE;
+	}
+
+	// make sure we're a stanford user
+	if (!($server === 'stanford.edu')) {
+		drupal_set_message('Unable to authenticate because userid is not a valid Stanford id.','error');
+		return FALSE;
+	}	
+
+	// build the url bits
+
+	global $base_url;
+	$my_base = variable_get('webauth_base',$base_url);
+	$host = 'ssl://';
+	$doc = '/';
+	$urlokay = FALSE;
+	if ($my_base) {
+		if (substr($my_base,strlen($my_base)-1,1) === '/') {
+			$my_base = substr($my_base,0,strlen($my_base)-1);
+		}
+		$splode1 = explode('://',$my_base,2);
+		if (count($splode1) == 2) {
+			$splode2 = explode('/',$splode1[1],2);
+			$host .= $splode2[0];
+			if (count($splode2) > 1) {
+				$doc .= $splode2[1];
+			}
+			$doc .= '/webauth/wa_check.php';
+			$urlokay = TRUE;
+		}
+	}
+
+	if (!$urlokay) {
+		drupal_set_message('Unable to authenticate because of missing or incorrect base_url.','error');
+		return FALSE;
+	}
+
+	$wa_user_ok = FALSE;
+	$wa_exp_ok = FALSE;
+	$wa_creation_ok = FALSE;
+
+  $url = parse_url($base_url);
+
+	// we've gotten this far. now socket to me!
+	$sock = fsockopen('ssl://' . $url['host'], 443, $errno, $errstr, 10);
+	if (!$sock) {
+		drupal_set_message('Unable to authenticate because of socket error: '.$errstr,'error');
+		return FALSE;
+	}
+
+	fwrite($sock, "GET ".$doc." HTTP/1.1\r\n");
+	fwrite($sock, "Host: " . $url['host'] . "\r\n");
+	fwrite($sock, "Connection: close\r\n");
+	fwrite($sock, "Cookie: webauth_at=".urlencode($at_cookie)."\r\n");
+	fwrite($sock, "Accept: */*\r\n");
+	fwrite($sock, "\r\n");
+	fwrite($sock, "\r\n");
+
+	while (!feof($sock)) {
+		$rHeader = fgets($sock);
+		list($header,$value) = explode(': ', $rHeader, 2);
+		$header = trim($header);
+		$value = trim($value);
+		switch ($header) {
+			case 'wa_user':
+				$wa_user_ok = ($value === $wa_session['wa_data']['wa_user']);
+				break;
+			case 'wa_token_expiration':
+				$wa_exp_ok = ($value === $wa_session['wa_data']['wa_token_expiration']);
+				break;
+			case 'wa_token_creation':
+				$wa_creation_ok = ($value === $wa_session['wa_data']['wa_token_creation']);
+				break;
+		}
+	}
+	fclose($sock);
+
+	// does our webauth data match what we have in the session?
+	$okay = ($wa_user_ok && $wa_exp_ok && $wa_creation_ok);
+
+	// if not, remove it from the session
+	if (!$okay) {
+		unset($wa_session['wa_data']);
+		wmdSessionWrite(session_name(),$wa_session);  
+        } else {
+		user_external_login_register($username.'@'.$server,'webauth');
+		drupal_goto($_REQUEST['destination']);
+	}
+	return $okay;
+	
+}
+
+// drupal calls this function for a variety of operations.
+// we're only interested in the 'insert' op for a new user (one coming to the drupal site
+// for the first time after logging in through WebAuth. Drupal will automatically create a 
+// user record, but we will ad a random password and set  the user's role to 'SUNetID' and 'authenticated user'
+
+function webauth_user($op, &$edit, &$account, $category=NULL) {
+
+	global $wa_session;
+	global $cookie_domain;
+
+	if (variable_get('webauth_nossl',FALSE)) return;
+
+	if ($op == 'insert') {
+
+                $sunet_user = FALSE;
+                if ($account->uid != 0) {
+                	$sunet_user = (substr($account->name,-13) === '@stanford.edu');
+                }
+		if ($sunet_user) {
+			$rid = variable_get('webauth_sunetid_role',NULL);
+			$rid2 = variable_get('webauth_authuser_role', NULL);
+			db_query("UPDATE {users} SET mail = '%s' WHERE uid ='%d'", $account->name, $account->uid);
+			db_query("UPDATE {users} SET pass = '%s' WHERE uid = '%d'", user_password(25), $account->uid);
+			if ($rid) {
+				db_query("INSERT {users_roles} SET uid = '%s', rid = '%s'", $account->uid, $rid);
+			} else {
+				logit('Unable to insert role for user: '.$account->name.'. webauth_sunetid_role = '.$rid);
+			}
+			if ($rid2) {
+				db_query("INSERT {users_roles} SET uid = '%s', rid = '%s'", $account->uid, $rid2);
+			} else {
+				logit('Unable to insert role for user: '.$account->name.'. webauth_authuser_role = '.$rid2);
+			}
+			$edit['mail'] = NULL;
+			$edit['pass'] = NULL;
+			$edit['roles'] = NULL;
+		}
+	} elseif ($op == 'delete' || $op == 'logout') {
+		unset($wa_session['wa_data']);
+		wmdSessionWrite(session_name(),$wa_session);
+		$postSess = session_name() . '_WMDPOST';
+		if (isset($_COOKIE[$postSess])) {
+			wmdWriteCookie($postSess,"", time()-3600, '/', $cookie_domain, FALSE, TRUE);
+		}
+	}
+
+}
+
+function webauth_node_operations() {
+	$operations=array(
+		'resetwaaccess' => array(
+			'label' => t('Set Content Access Restrictions to Default'),
+			'callback' => 'node_operations_reset_access',
+		)
+	);
+	return $operations;
+}
+
+
+function node_operations_reset_access($checked) {
+
+	global $conf;	
+	foreach ($checked as $nid) {
+		$node = node_load($nid);
+		if ($node != NULL) {
+			$defRoles = array();
+			$defGroups = "";		
+                	if ($conf['fldRoles_'.$node->type] != NULL) {
+	                	foreach ($conf['fldRoles_'.$node->type] as $idx => $rValue) {
+                        		$defRoles[$rValue] = $rValue;
+	                        }
+        	        }
+                	if ($conf['fldSugroups_'.$node->type] != NULL) {
+                		$defGroups = $conf['fldSugroups_'.$node->type];
+	                }
+			$inherit = 0;
+		        $result = db_query('SELECT inherit FROM {webauth} WHERE nid = %d', $node->nid);
+		        if ($result) {
+				$object = db_fetch_object($result);
+			        if ($object) {
+					$inherit = $object->inherit;
+				}
+			}
+		        db_query('DELETE FROM {webauth} WHERE nid = %d', $node->nid);
+	        	db_query("INSERT INTO {webauth} (nid, roles, sugroups, inherit) VALUES (%d, '%s', '%s', %d)", $node->nid, serialize($defRoles), $defGroups, $inherit);
+		}
+	}
+}
+
+// this gets called before every form display. use it to add a hyperlink to WebAuth onto
+// Drupal's two login screens. Also, hide the non-webauth stuff on the login-block if that's what the 
+// administrator asked for. Also add all the content restriction stuff to node forms.
+
+function webauth_form_alter(&$form, $form_state, $form_id) {
+
+	global $user, $conf;
+
+	if (variable_get('webauth_nossl',FALSE)) return;
+
+	$webauth_autologin = variable_get('webauth_autologin',FALSE);
+	if ($webauth_autologin && (substr($form_id, strlen($form_id)-10) === '_node_form')) {
+           $form['webauth_force'] = array(
+                '#type' => 'fieldset',
+                '#access' => 1,
+                '#title' => t('Auto WebAuth Login'),
+                '#collapsible' => TRUE,
+                '#collapsed' => TRUE,
+                '#weight' => 2);
+
+           $defForce = array();
+           if ($form['#node']->wa_force) {
+           	$defForce = array(1 => 1);
+		$form['webauth_force']['#collapsed'] = FALSE;
+	   }
+
+           $form['webauth_force']['fldWaForce'] = array('#type' => 'checkboxes',
+                '#options' => array(1 => t('Restrict access to this content to Stanford users and force login if user is anonymous.')),
+                '#default_value' => $defForce,
+                '#weight' => -5,
+                '#prefix' => '<div id="waForce">',
+                '#suffix' => '</div>');
+        }
+
+	$allow_restrict = variable_get('webauth_restrict', FALSE);
+        if ($allow_restrict && ((substr($form_id, strlen($form_id)-10) === '_node_form') || ($form_id === 'node_type_form'))) {
+
+	   $accessSuGroups = trim(variable_get('webauth_ldap_cred',NULL));
+	   $disclaimer = "";
+
+	   $insert = "";
+	   $type = "";
+	   if ($form_id === 'node_type_form') {
+		$insert = " type of";
+		$type = $form['#node_type']->type;
+	   }  else {
+		$type = substr($form_id, 0, strpos($form_id,'_node_form'));
+	   }
+
+	   if ($accessSuGroups) {
+	           $disclaimer = t('Use these fields to restrict access to this' . $insert . ' content by website role or Stanford workgroup ' .
+        	                 'above and beyond the default access controls set for all content by the site administrator.<br />' .
+                	         'A user who has any of the checked website roles or belongs to any of the specified workgroups ' .
+				 'will be granted access to view this' . $insert . ' content.'); 
+	   } else {
+		   $disclaimer = t('Use these fields to restrict access to this' . $insert . ' content by website role above and beyond  the ' .
+				 'default access controls set for all content by the site administrator.<br /> A user who has any of the checked website ' .
+				 'roles will be granted access to view this' . $insert . ' content.');
+	   }
+
+
+
+	   // get default values for this node type
+	   $allRoles = user_roles(TRUE,'access_content');
+	   foreach ($allRoles as $rId => $rVal) {
+		$allRoles[$rId] = $rId;
+	   }
+	   $defRoles = $allRoles;
+	   $defGroups = "";
+	   $defInherit = array();
+	   $defOverride = array();
+           $collapsed = TRUE;
+	   if (($form_id === 'node_type_form') || ($form['#node']->nid == NULL)) {
+		if ($conf['fldOverride_'.$type][0] === 1) {
+			$defRoles = $conf['fldRoles_'.$type];
+			$defGroups = $conf['fldSugroups_'.$type];
+			$defOverride = array(1 => 1);
+			$collapsed = FALSE;
+		}	
+	   } else {
+		if ($form['#node']->wa_override) {
+			$defRoles = $form['#node']->wa_roles;
+			$defGroups = $form['#node']->wa_sugroups;
+			$defInherit = $form['#node']->wa_inherit;
+			$defOverride = array(1 => 1);
+			$collapsed = FALSE;
+		}
+	   }
+
+	   $form['webauth'] = array(
+		'#type' => 'fieldset',
+		'#access' => 1,
+		'#title' => t('Content Access Restrictions'),
+		'#collapsible' => TRUE,
+		'#collapsed' => $collapsed,
+		'#weight' => 2,
+                '#description' => t($disclaimer));
+
+	   $form['webauth']['fldOverride'] = array('#type' => 'checkboxes',
+		'#options' => array(1 => t('Override default access restrictions for this content.')),
+		'#default_value' => $defOverride,
+		'#weight' => -5,
+		'#prefix' => '<div id="waRestrict">',
+		'#suffix' => '</div>');
+
+	   $form['webauth']['fldDummy1'] = array(
+		'#type' => 'hidden',
+		'#weight' => -3,
+		'#prefix' => '<div id="waHidem">');
+
+ 	   $form['webauth']['fldRoles'] = array('#type' => 'checkboxes',
+		'#options' => user_roles(TRUE,'access_content'),
+		'#title' => t('Allow access for which roles (leave unchecked for default access rules)'),
+		'#default_value' => $defRoles,
+		'#weight' => 0,
+		'#prefix' => '<div id="waRoles">',
+		'#suffix' => '</div>');
+	  
+        
+	   if ($accessSuGroups) {
+		   $form['webauth']['fldSugroups'] = array(
+	 		'#type' => 'textfield',
+			'#title' => t('Allow access for which Stanford Workgroups'),
+			'#maxlength' => 255,
+			'#default_value' => $defGroups,
+			'#weight' => 1,
+			// added / to the <br> tag on the line below: Lance Simms 8/14/08
+			'#description' => t('Enter workgroup names separated by a comma.<br />'.WORKGROUP_MSG),
+			'#prefix' => '<div id="waGroups">',
+			'#suffix' => '</div>');
+	   } else {
+		   $form['webauth']['fldSugroups'] = array(
+			'#type' => 'hidden',
+			'#value' => '',
+			'#weight' => 1,
+			'#prefix' => '<div id="waGroups">',
+			'#suffix' => '</div>');
+	   }	   
+
+
+
+           if (Drupal.jsEnabled) {
+	   	// figure out our modules directory
+                $rp = realpath('.');
+                $mp = "";
+                if (file_exists($rp.'/sites/all/modules/webauth/webauth.js')) {
+                	$mp = 'sites/all/modules/webauth/webauth.js';
+                } elseif (file_exists($rp.'/modules/webauth/webauth.js')) {
+                        $mp = 'modules/webauth/webauth.js';
+                }
+
+                drupal_add_js($mp, 'module','header');
+                drupal_add_js(
+                	'$(document).ready(function() {
+						overClick('.($defOverride[0] == 1).');
+	                                        $("#edit-fldOverride-1").click(function() {
+                                                overClick(null);
+                                        })})','inline');
+           }
+	   
+
+	   if ($form_id === 'book_node_form') {
+
+
+		$js_string = '"';
+		$result = db_query('SELECT {webauth}.nid, {webauth}.roles, {webauth}.sugroups from {book}, {webauth} where {book}.nid = {book}.bid and {book}.nid = {webauth}.nid and {webauth}.inherit = 1');
+		if ($result) {
+			$res_array = db_fetch_array($result);
+			while ($res_array) {
+				$js_string = $js_string . $res_array["nid"] . ",";
+		                $res_array = db_fetch_array($result);
+			}
+		}
+		$js_string .= '"';
+		$nid_string = '"' . $form['nid']['#value'] . '"';
+		$form['webauth']['fldInherit'] = array(
+			'#type' => 'checkboxes',
+			'#options' => array(1 => 'Children inherit access restrictions from this page. (available only for top-level pages)'),
+			'#default_value' => $defInherit,
+			'#weight' => -1,
+			'#disabled' => 'disabled',
+			'#prefix' => '<div id="waInherit">',
+			'#suffix' => '</div>',
+			'#description' => t('All pages that are children of this page will inherit its access restrictions.'));
+
+
+	        if (Drupal.jsEnabled) {
+			drupal_add_js(
+				'$(document).ready(function() {
+					var js_string = '.$js_string.';
+					var nid_string = '.$nid_string.';
+					parentClick(js_string, nid_string);
+					$("#edit-book-bid").change(function() {
+						parentClick(js_string, nid_string);
+					})})','inline');
+		}
+	   }
+
+           $form['webauth']['fldDummy2'] = array(
+                '#type' => 'hidden',
+                '#weight' => 2,
+                '#suffix' => '</div>');
+
+	   if ($form_id == 'book_node_form') {
+                $form['webauth']['fldInheritsFromTop'] = array(
+                        '#type' => 'checkboxes',
+                        '#options' => array(1 => 'This node inherits its access restrictions from its top-most parent.'),
+                        '#default_value' => array(),
+                        '#weight' => -4,
+                        '#prefix' => '<div id="waNodeInherits">',
+                        '#suffix' => '</div>',
+                        '#disabled' => 'disabled');
+	   }
+
+	}	
+
+	if ($form_id == 'user_login_block' || $form_id == 'user_login') {
+
+		if (isset($form_state['weblogin']['server'])) {
+			$form['#validate'] = array('webauth_auth');
+		}
+
+		// build a link to wa_login.
+		// added double quotes to webauth link - Lance Simms 8/13/08
+		$wa_url = '<a href="'.build_login_url();
+		$wa_url .= '">'.variable_get('webauth_link_text','SUNetID').'</a>';
+		$form['webauth_link'] = array(
+			'#prefix' => '<div id="webauth-link">',  // make it themable
+			'#value' => t($wa_url),
+			'#suffix' => '</div>',
+			'#weight' => -10
+		);
+	
+		if ($form_id == 'user_login_block') {
+			$allow_local = variable_get('webauth_allow_local', TRUE);
+			if (!$allow_local) {
+				unset($form['name']);
+				unset($form['pass']);
+				unset($form['submit']);
+				unset($form['links']);
+			}
+		}
+	}
+	
+}
+
+// add content access retriction handling to node load, insert, update, delete, and alter functions
+
+function webauth_nodeapi(&$node, $op, $teaser, $page) {
+
+  global $user;
+  global $wa_session;
+
+  $webauth_restrict = variable_get('webauth_restrict',FALSE);
+  $webauth_autologin = variable_get('webauth_autologin',FALSE);
+  if (!$webauth_restrict && !$webauth_autologin) return;
+
+  switch ($op) {
+
+    case 'load':
+
+      $return_array = array('wa_override' => FALSE, 'wa_force' => FALSE);
+
+      if ($webauth_restrict) {
+	      $result = db_query('SELECT roles, sugroups, inherit FROM {webauth} WHERE nid = %d', $node->nid);
+	      if ($result) {
+        	 $object = db_fetch_object($result);
+	         if ($object) {
+			$objInherit = array(1 => $object->inherit);
+			$return_array = array('wa_override' => TRUE, 'wa_roles' => unserialize($object->roles),'wa_sugroups' => $object->sugroups, 'wa_inherit' => $objInherit, 'wa_force' => FALSE);
+		 }
+	      }
+      }
+
+      if ($webauth_autologin) {
+	      $result = db_query('SELECT nid FROM {webauth_force} where nid = %d', $node->nid);
+	      if ($result) {
+        	 $object = db_fetch_object($result);
+		 if ($object) {
+      			$return_array['wa_force'] = TRUE;
+		}
+	      }
+      }
+
+      return $return_array;
+      break;
+
+    case 'view':
+
+      if ($user->uid == 0 && $node->wa_force && $node->build_mode == 0 && !$teaser) {
+        $login_url = build_login_url('node/'.$node->nid);
+        drupal_goto($login_url);
+      }
+      break;
+
+    case 'insert':
+    case 'update':
+    case 'delete':
+
+	if ($webauth_restrict) {
+	        $result = db_query('SELECT inherit FROM {webauth} WHERE nid = %d', $node->nid);
+        	if ($result) {
+        		$object = db_fetch_object($result);
+		}
+		db_query('DELETE FROM {webauth} WHERE nid = %d', $node->nid);
+		if (($op == 'update' || $op == 'insert') && ($node->fldOverride[1] == 1)) {	
+			foreach ($node->fldRoles as $role => $value) {
+				if ($value != $role) unset($node->fldRoles[$role]);
+			}
+			$inherit = $node->fldInherit[1];
+			db_query("INSERT INTO {webauth} (nid, roles, sugroups, inherit) VALUES (%d, '%s', '%s', %d)", $node->nid, serialize($node->fldRoles), $node->fldSugroups, $inherit);
+		}
+	}
+	
+	if ($webauth_autologin) {
+		db_query('DELETE FROM {webauth_force} WHERE nid = %d', $node->nid);
+		if ($op == 'update' || $op = 'insert') {
+			if ($node->fldWaForce[1]) {
+				db_query("INSERT INTO {webauth_force} (nid) VALUE (%d)", $node->nid);
+			}
+		}
+	}
+	break;
+
+    case 'print':
+    case 'rss item':
+    case 'alter':
+
+      $restrictable = TRUE;
+      $ownerAdmin = FALSE;
+      $node_admin = user_roles(FALSE, 'administer nodes');
+      if ((count(array_diff_key($node_admin,$user->roles)) < count($node_admin)) ||
+	  ($user->uid == 1) || ($user->uid > 0 && $user->uid == $node->uid)) {
+		$ownerAdmin = TRUE;
+      }
+      if ($ownerAdmin || (!$node->wa_override && !$node->wa_force)) {
+        $restrictable = FALSE;
+      }
+      $bookOverride = FALSE;
+
+      if (!$ownerAdmin && $node->type === "book") {
+          $pIndex = $node->book['bid'];
+          if ($pIndex != NULL && $pIndex > -1) {
+              $result = db_query('SELECT roles, sugroups, inherit from {webauth} WHERE nid = %d', $pIndex);
+              if ($result) {
+                  $object = db_fetch_object($result);
+                  if ($object && $object->inherit) {
+		      $roleArray = unserialize($object->roles);
+		      $grpString = $object->sugroups;
+		      $bookOverride = TRUE;
+                      $restrictable = TRUE;
+                  }
+              }              
+          }
+      }
+
+      if ($restrictable) {
+
+		// get the content access properties for this node
+		if (!$bookOverride) {
+			$roleArray = $node->wa_roles;
+			$grpString = $node->wa_sugroups;
+		}
+			
+		if ($node->wa_force) {
+            $rid = variable_get('webauth_sunetid_role',NULL);
+			if (isset($rid)) {
+                if ((!isset($roleArray) || count($roleArray) < 1) && (!isset($grpString) || strlen($grpString) < 1)) {
+                    $roleArray[$rid] = $rid;
+                }
+            }
+		}
+
+		$chkRole = isset($roleArray);
+		$restrictOnRole = FALSE;
+		if ($chkRole) {
+			$restrictOnRole = (count(array_diff_key($roleArray,$user->roles)) == count($roleArray));
+		}
+
+		$chkGrp = ((isset($grpString)) && (strlen($grpString) > 0));
+		$restrictOnGrp = FALSE;
+		if ($chkGrp && (!$chkRole || ($chkRole && $restrictOnRole))) {
+
+			$sunet_user = FALSE;
+		        if ($user->uid != 0) {
+                		$sunet_user = ((substr($user->name,-13) === '@stanford.edu') && isset($wa_session['wa_data']));
+		        }
+
+			$restrictOnGrp = TRUE;
+			if ($sunet_user) {
+
+				$grpsToSearch = array();
+				$sGroups = explode(",",$grpString);
+				foreach ($sGroups as $sGroup) {
+					$sGroup = trim($sGroup);
+					if (isset($wa_session['wa_data']['sugroups'][$sGroup])) {
+						if ($wa_session['wa_data']['sugroups'][$sGroup] == TRUE) $restrictOnGrp = FALSE;
+					} else {
+                        $grpsToSearch[] = $sGroup;
+					}
+				}
+
+				if ($restrictOnGrp && count($grpsToSearch) > 0) {
+					$restrictOnGrp = FALSE;
+		                        $ldap_cred = trim(variable_get('webauth_ldap_cred',NULL));
+					$ldapError = '';
+					$userid = $wa_session['wa_data']['wa_user'];
+					if ($userid) {
+						$restrictOnGrp = ldap_sugroup_compare($userid, $grpsToSearch, $ldap_cred, $ldapError);
+					} else {
+                                                $ldapError = t('Can not search LDAP. No userid found in WebAuth session.');
+						$restrictOnGrp = TRUE;
+					}
+					if  (strlen($ldapError) > 0) {
+						drupal_set_message('LDAP Error. '.$ldapError, 'error');
+                                                foreach ($grpsToSearch as $groupid) {
+                                                	$wa_session['wa_data']['sugroups'][$groupid] = FALSE;
+                                                }
+						$restrictOnGrp = TRUE;
+						wmdSessionWrite(session_name(),$wa_session);
+					}
+				}
+			}
+		}
+
+		$restrict = FALSE;
+		if (($chkRole && $chkGrp) && ($restrictOnRole && $restrictOnGrp)) {
+			$restrict = TRUE;
+		} elseif (($chkRole && !$chkGrp) && $restrictOnRole) {
+			$restrict = TRUE;
+		} elseif ((!$chkRole && $chkGrp) && $restrictOnGrp) {
+			$restrict = TRUE;
+		}
+	
+ 		if ($restrict) {
+			$outstr = t(variable_get('webauth_restrict_message','This content is restricted.'));
+			unset($node->links);
+			$node->readmore = 0;
+			if ($node->teaser) $node->teaser = $outstr;
+			$node->body = $outstr;
+			$node->content = array('body' => array('#weight' => 0, '#value' => $outstr, '#printed' => 1), '#children' => $outstr, '#printed' => 1);
+      		}
+      }
+      break;
+
+  }
+}
+
+// use LDAP to see if a user is in a particular workgroup.
+function ldap_sugroup_compare($userid, $grpsToSearch, $ldap_cred, &$ldapError) {
+
+	global $wa_session;
+
+	$ldapError = '';
+        $ldapok = FALSE;
+        $ldap = ldap_connect("ldap://ldap.stanford.edu");
+        if ($ldap) {
+        	$ldapok = ldap_bind($ldap);
+        }
+        if (!$ldapok) $ldapError = t('Unable to connect to Stanford LDAP Server.');
+        if ($ldapok) {
+        	$ldapok = ldap_set_option($ldap,LDAP_OPT_PROTOCOL_VERSION,3);
+                if ($ldapok) {
+                	putenv('KRB5CCNAME=FILE:'.$ldap_cred);
+                        $ldapok = ldap_sasl_bind($ldap,"","","GSSAPI");
+                }
+                if ($ldapok) {
+                	$dn = "cn=people,dc=stanford,dc=edu";
+                        $ldapok = FALSE;
+                        $filter ="uid=".$userid;
+                        $result = ldap_search($ldap, $dn, $filter);
+                        if ($result)
+                        {
+                          	$info = ldap_get_entries($ldap,$result);
+                                if ($info && $info['count'] > 0) {
+	                        	$ldapok = TRUE;
+        	                        foreach ($grpsToSearch as $groupid) {
+                	                    	$result = ldap_compare($ldap, $info[0]["dn"], 'suPrivilegeGroup', $groupid);
+                        	                if ($result === -1) {
+							$ldapok = FALSE;
+                                	               	$ldapError = t('LDAP Compare Error on group: '.$groupid);
+                                                        $wa_session['wa_data']['sugroups'][$groupid] = FALSE;
+                                               	} elseif ($result === TRUE) {
+                                                       	$wa_session['wa_data']['sugroups'][$groupid] = TRUE;
+	                                                $ldapok = FALSE;
+        	                                } else {
+                	                                $wa_session['wa_data']['sugroups'][$groupid] = FALSE;
+                        	                }
+                                	}
+					wmdSessionWrite(session_name(), $wa_session);
+	                        } else {
+	                        	$ldapError = t('No entry returned for '.$userid.' in Stanford LDAP server.');
+        	                }
+                	} else {
+                                $ldapError = t('LDAP Search failed for '.$userid);
+	                }
+        	} else {
+			$ldapError = t('Unable to bind credential file to LDAP connection.');
+		}
+	}
+	ldap_close($ldap);
+
+	return $ldapok;
+}
+
+function webauth_cron() {
+	
+	$nowSecs = time();
+	db_query("DELETE FROM {webauth_session} where timestamp < '%d'",($nowSecs - 86400));
+}
+
+?>

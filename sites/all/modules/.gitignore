@@ -1,0 +1,5 @@
+# Ignore zipped modules #
+###################
+*.zip
+*.tar
+*.gz

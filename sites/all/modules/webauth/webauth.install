@@ -1,0 +1,438 @@
+<?php
+// $Id: webauth.install 1808 2010-03-18 17:32:58Z ksharp $
+
+/**
+ * Implementation of hook_install().
+ */
+
+function backup_and_cleanup() {
+
+	static $done = FALSE; // we only want to back up the files once per installation
+	if ($done) return;
+	$done = TRUE;
+	watchdog('status','running webauth.install backup_and_cleanup');
+	
+	// if a webauth installation exists and this update/install process hasn't backed it up yet, do so
+	if (realpath('./webauth')) {
+		// set up a backup directory
+		$rp = realpath('.');
+		$backup = $rp.'/webauth_backup_'.date('YMdHis');
+        	mkdir($backup, 0750);
+		if (file_exists($rp.'/webauth/wa_session.inc')) {
+			copy($rp.'/webauth/wa_session.inc',$backup.'/wa_session.inc');
+			file_delete($rp.'/webauth/wa_session.inc');
+		}
+
+		copy($rp.'/webauth/wa_login.php',$backup.'/wa_login.php');
+		copy($rp.'/webauth/wa_check.php',$backup.'/wa_check.php');
+		copy($rp.'/webauth/wa_base.inc',$backup.'/wa_base.inc');
+		copy($rp.'/webauth/.pkey', $backup.'/.pkey');
+		copy($rp.'/webauth/.htaccess', $backup.'/.htaccess');
+
+		// delete scripts and access files we copied from the module dir
+		file_delete($rp.'/webauth/wa_login.php');
+		file_delete($rp.'/webauth/wa_check.php');
+		file_delete($rp.'/webauth/wa_base.inc');
+		file_delete($rp.'/webauth/.pkey');
+	}
+
+}
+
+function setup_main() {
+	
+	global $schema;
+
+
+	static $done = FALSE;  // make sure we do this only once per installation/update
+	if ($done) return;
+	$done = TRUE;
+
+	watchdog('status','running webauth.install setup_main');
+        $result = db_query("UPDATE {system} SET  weight = '%d' WHERE name = '%s'",-10, "webauth");
+        if (!$result) {
+	        drupal_set_message(t('WebAuth module installation unable to set weight in system table'),'status');
+	}
+
+	// make sure we have open ssl enabled
+	$sslfound = FALSE;
+	$exs = get_loaded_extensions();
+	foreach($exs as $key => $value) {
+		if ($value === 'openssl') {
+			$sslfound = TRUE;
+			break;
+		}
+	}
+	if (!$sslfound) {
+		drupal_set_message(t('Unable to install the webauth module because this PHP installation does not have OpenSSL enabled.'),'error');
+		variable_set('webauth_nossl',TRUE);
+		return;
+	}
+
+	// set up a 'webauth' directory under the drupal base directory
+	$rp = realpath('.');
+	$wa_dir = $rp . '/webauth';
+	$status = file_check_directory($wa_dir,FILE_CREATE_DIRECTORY+FILE_MODIFY_PERMISSIONS);
+	if ($status == FALSE) {
+		drupal_set_message(t('Unable to create webauth directory under Drupal base directory. Check permissions. Installation failed.'),'error');
+		variable_set('webauth_nossl', TRUE);
+		return;
+	} 
+
+	// figure out our modules directory
+	$mp = '/';
+	$result = db_query("SELECT (filename) FROM {system} WHERE name = '%s'","webauth");
+	if ($result) {
+		$fname = db_result($result);
+		$lastsl = strrpos($fname,'/');
+		if ($lastsl) {
+			$fname = substr($fname,0,$lastsl);
+		}
+		$mp .= $fname .'/';
+	}
+
+	// copy in scripts and access files from the module directory
+ 	$status = copy($rp.$mp.'wa_login.inc',$rp.'/webauth/wa_login.php');
+	$status = $status && copy($rp.$mp.'wa_check.inc',$rp.'/webauth/wa_check.php');
+	if ($status == FALSE) {
+		drupal_set_message(t('Unable to copy WebAuth scripts into webauth directory. Check permissions. Installation failed.'),'error');
+		variable_set('webauth_nossl', TRUE);
+		return;
+	} 
+
+	// don't overwrite an existing .htaccess file as someone may have customized it
+	if (!file_exists($rp.'/webauth/.htaccess')) {
+		$status = copy($rp.$mp.'htaccess.inc',$rp.'/webauth/.htaccess');
+		if ($status == FALSE ) {
+			drupal_set_message(t('Unable to copy .htaccess file into webauth directory. You will need to manually create this file to login using WebAuth.'),'error');
+		}
+	}
+
+	// create a directory to store log files
+	$wa_dir .= '_logs';
+	$status = file_check_directory($wa_dir,FILE_CREATE_DIRECTORY+FILE_MODIFY_PERMISSIONS);
+
+	// see if a "SUNet User" role is already in the Drupal DB. 
+	// if not, create it and set its permissions to 'access content'
+	// store the role id in Drupal's global variable array
+	$result = db_query("SELECT (rid) FROM {role} WHERE name = '%s'","SUNet User");
+	$rid = db_result($result);
+	if (!$rid) {
+		db_query("INSERT INTO {role} SET name = '%s'","SUNet User");
+		$result = db_query("SELECT (rid) FROM {role} WHERE name = '%s'","SUNet User");
+		$rid = db_result($result);
+		if ($rid) {
+			$result = db_query("SELECT (rid) FROM {permission} WHERE rid = '%s'", $rid);
+			$pid = db_result($result);
+			if (!$pid) {
+				db_query("INSERT INTO {permission} SET rid = '%s', perm = 'access content'", $rid);
+			}
+		}
+	}
+	variable_set('webauth_sunetid_role', $rid);
+
+	// find Drupal's "authenticated user" id and store its role id in the global variable array
+	$result2 = db_query("SELECT (rid) FROM {role} WHERE name = '%s'","authenticated user");
+	$rid2 = db_result($result2);
+	if ($rid2) {
+		variable_set('webauth_authuser_role', $rid2);
+	}
+
+	// default the webauth module to also allow local logins
+	$allow = variable_get('webauth_allow_local', 1);
+	variable_set('webauth_allow_local', $allow);
+
+	// default the text to display as the WebLogin link
+	if (!variable_get('webauth_link_text', FALSE)) {
+		variable_set('webauth_link_text', 'Login with your SUNetID');
+	}
+
+	// default the node destination to go to after login to the home page
+	if (!variable_get('webauth_destination', FALSE)) {
+		variable_set('webauth_destination', '');
+	}
+
+	// default restrict message
+	if (!variable_get('webauth_restrict_message', FALSE)) {
+		variable_set('webauth_restrict_message', 'This content has been restricted by the author or by the site administrator.');
+	}
+
+	// default disable content access restrictions
+	$restrict = variable_get('webauth_restrict', 0);
+	variable_set('webauth_restrict', $restrict);
+
+	// default disable auto weblogin restrictions
+	$restrict = variable_get('webauth_autologin', 0);
+	variable_set('webauth_autologin', $restrict);
+
+	// figure out Drupal's base url (in case its not specified in the settings.php file)
+	// and store it both in the global array and in an include file in our webauth directory
+	$my_base = 'https://' . preg_replace('/[^a-z0-9-:._]/i', '', $_SERVER['HTTP_HOST']);
+	if ($dir = trim(dirname($_SERVER['SCRIPT_NAME']), '\/')) {
+		$my_base .= "/$dir";
+	}
+	variable_set('webauth_base', $my_base);
+	$fh = fopen($rp.'/webauth/wa_base.inc','a');
+	if ($fh != FALSE) {
+		fwrite($fh,'<?php'.chr(13).chr(10));
+		fwrite($fh,'$base = "'.$my_base.'";'.chr(13).chr(10));
+		fwrite($fh,'?>'.chr(13).chr(10));
+		fclose($fh);
+	}
+
+	// create keys to encrypt webauth info when running behind a proxy
+        $res = openssl_pkey_new();
+        $pkey_ok = openssl_pkey_export($res, $privkey);
+        if ($pkey_ok) {
+                $pkey_ok = openssl_pkey_export_to_file($privkey,$rp.'/webauth/.pkey');
+                if ($pkey_ok) {
+			$pubkey = "";
+			if (version_compare(PHP_VERSION,'5.2.0') === 1) {
+	                        $pkey_detail=openssl_pkey_get_details($res);
+        	                $pubkey = $pkey_detail['key'];
+			} else {
+				$dn = array();
+				$res_csr = openssl_csr_new($dn, $res);
+				$res_cert = openssl_csr_sign($res_csr, null, $res, 3650);
+				$pkey_ok = openssl_x509_export($res_cert, $pubkey);
+			}
+			if ($pkey_ok) {
+	                        variable_set('webauth_pubkey',$pubkey);
+			}
+                }
+        }
+
+} 
+
+function webauth_install() {
+	watchdog('status','running webauth.install hook_install');
+	backup_and_cleanup();
+	setup_main();
+	drupal_install_schema('webauth');
+}
+
+function check_wa_tables() {
+
+	global $db_prefix, $db_url;
+
+	$db_path = '';
+	if (!empty($db_url)) {
+		$url = parse_url(is_array($db_url) ? $db_url['default'] : $db_url);
+		if (isset($url['path'])) {
+			$db_path = ltrim(urldecode($url['path']), '/');
+		} else {
+			return FALSE;
+		}
+	}
+	
+	$wa_tables = array('webauth_access' => array('exists' => FALSE), 'webauth' => array('exists' => FALSE), 'webauth_force' => array('exists' => FALSE), 'webauth_session' => array('exists' => FALSE));
+	$wa_tables['webauth_access']['prefix'] = is_array($db_prefix) ? (isset($db_prefix['webauth_access']) ? $db_prefix['webauth_access'] : (isset($db_prefix['default']) ? $db_prefix['default'] : '')) : $db_prefix;
+	$wa_tables['webauth']['prefix'] = is_array($db_prefix) ? (isset($db_prefix['webauth']) ? $db_prefix['webauth'] : (isset($db_prefix['default']) ? $db_prefix['default'] : '')) : $db_prefix;
+	$wa_tables['webauth_force']['prefix'] = is_array($db_prefix) ? (isset($db_prefix['webauth_force']) ? $db_prefix['webauth_force'] : (isset($db_prefix['default']) ? $db_prefix['default'] : '')) : $db_prefix;
+	$wa_tables['webauth_session']['prefix'] = is_array($db_prefix) ? (isset($db_prefix['webauth_session']) ? $db_prefix['webauth_sesiion'] : (isset($db_prefix['default']) ? $db_prefix['default'] : '')) : $db_prefix;
+
+	$result = db_query("SELECT table_name from information_schema.tables where table_schema = '".$db_path."' and table_name like '%webauth%'");
+	if ($result) {
+		$object = db_fetch_object($result);
+		while ($object) {
+			foreach ($wa_tables as $wakey => $waval) {
+				if (strcasecmp($object->table_name, $wa_tables[$wakey]['prefix'].$wakey) == 0) {
+					$wa_tables[$wakey]['exists'] = TRUE;
+				}
+			}
+			$object = db_fetch_object($result);
+		}
+	} else {
+		drupal_set_message(t('Unable to examine database for updates. Recommend uninstalling WMD then reinstalling.'),'status');
+		return FALSE;
+	}
+	
+	return $wa_tables;
+}
+
+function webauth_update_6250() {
+	global $db_prefix;
+	watchdog('status','running webauth_update_6250');
+	backup_and_cleanup();
+	setup_main();
+        $wa_tables = check_wa_tables();
+	$results = array();
+	if ($wa_tables) {
+		if ($wa_tables['webauth_access']['exists'] && !$wa_tables['webauth']['exists']) {
+			db_create_table($results, 'webauth', drupal_get_schema('webauth',true));
+			$results[] = update_sql('INSERT into {webauth} (nid, roles, sugroups, inherit) select * from {webauth_access}');
+		}
+		if (!$wa_tables['webauth_force']['exists']) {
+			db_create_table($results, 'webauth_force', drupal_get_schema('webauth_force',true));
+		}
+		if (!$wa_tables['webauth_session']['exists']) {
+			db_create_table($results, 'webauth_session', drupal_get_schema('webauth_session',true));
+		}
+	} else {
+		$results = array('#abort' => array('success' => FALSE, 'query' => 'Unable to check database tables. Recommend completely uninstalling WMD, then reinstalling.'));
+	}
+	return $results;
+}
+
+function webauth_update_6251() {
+	watchdog('status','running webauth_update_6251');
+	$results = array();
+	return $results;
+}
+
+function webauth_update_6252() {
+	watchdog('status','running webauth_update_6252');
+	$results = array();
+	return $results;
+}
+
+function webauth_update_6253() {
+	watchdog('status', 'running webauth_update_6253');
+	backup_and_cleanup();
+	setup_main();
+	$results = array();
+	return $results;
+}
+
+function webauth_update_6254() {
+    watchdog('status', 'running webauth_update_6254');
+    $results = array();
+    return $results;
+}
+
+function webauth_update_6255() {
+    watchdog('status', 'running webauth_update_6255');
+    $results = array();
+    return $results;
+}
+
+function webauth_uninstall() {
+	
+	// delete some of the variables we set in the global array
+	variable_del('webauth_sunetid_role');
+	variable_del('webauth_authuser_role');
+	variable_del('webauth_base');
+	variable_del('webauth_nossl');
+
+
+	backup_and_cleanup();
+}
+
+function webauth_requirements($phase) {
+
+        $requirements = array();
+
+	$requirements['wa_ver'] = array();
+	if (substr(VERSION,0,1) === '6') {
+		$requirements['wa_ver']['title'] = 'WebAuth module for Drupal 6.x';
+		$requirements['wa_ver']['value'] = TRUE;
+		$requirements['wa_ver']['severity'] = REQUIREMENT_OK;
+	} else {
+		$requirements['wa_ver']['title'] = 'WebAuth module requires Drupal 6.x';
+		$requirements['wa_ver']['value'] = FALSE;
+		$requirements['wa_ver']['severity'] = REQUIREMENT_ERROR;
+		$requirements['wa_ver']['description'] = 'This version of the WebAuth module requires Drupal version 6.x';
+	}
+
+        $requirements['wa_ssl'] = array();
+
+        // make sure we have open ssl enabled
+        $sslfound = FALSE;
+        $exs = get_loaded_extensions();
+        foreach($exs as $key => $value) {
+                if ($value === 'openssl') {
+                        $sslfound = TRUE;
+                        break;
+                }
+        }
+        if ($sslfound) {
+                $requirements['wa_ssl']['title'] = 'OpenSSL';
+                $requirements['wa_ssl']['value'] = TRUE;
+                $requirements['wa_ssl']['severity'] = REQUIREMENT_OK;
+        } else {
+                $requirements['wa_ssl']['title'] = 'no OpenSSL support';
+                $requirements['wa_ssl']['value'] = FALSE;
+                $requirements['wa_ssl']['severity'] = REQUIREMENT_ERROR;
+                $requirements['wa_ssl']['description'] = 'The WebAuth module requires that PHP have OpenSSL support enabled.';
+        }
+
+        return $requirements;
+}
+
+function webauth_schema() {
+
+	$schema['webauth'] = array(
+		'description' => t('Each record describes content access (read) restrictions for a node.'),
+		'fields' => array(
+			'nid' => array(
+				'description' => t('The node id. Duh.'),
+				'type' => 'int',
+				'not null' => TRUE,
+				'default' => 0,
+			),
+			'roles' => array(
+				'description' => t('List of Drupal roles which may read this node'),
+				'type' => 'text',
+				'size' => 'big',
+				'not null' => FALSE,
+			),
+			'sugroups' => array(
+				'description' => t('List of Stanford workgroups which may read this node.'),
+				'type' => 'text',
+				'size' => 'big',
+				'not null' => FALSE,
+			),
+			'inherit' => array(
+				'description' => t('If true, all children of this node will inherit its restrictions.'),
+				'type' => 'char',
+				'length' => '1',
+				'not null' => TRUE,
+				'default' => '0',
+			),
+		),
+		'primary key' => array('nid'),
+	);
+
+	$schema['webauth_force'] = array(
+		'description' => t('Nodes listed in this table will cause automatic redirect to WebLogin before the node can be read.'),
+		'fields' => array(
+			'nid' => array(
+				'description' => t('The node id. Buh!'),
+				'type' => 'int',
+				'not null' => TRUE,
+				'default' => 0,
+			),
+		),
+		'primary key' => array('nid'),
+	);
+
+
+	$schema['webauth_session'] = array(
+		'description' => t('Session data to be transferred between Drupal and the WMD wa_login script.'),
+		'fields' => array(
+			'sid' => array(
+				'description' => t('The session id. Same as the session id for the current Drupal session.'),
+				'type' => 'varchar',
+				'length' => '64',
+				'not null' => TRUE,
+				'default' => '',
+			),
+			'timestamp' => array(
+				'description' => t('Timestamp for garbage collection.'),
+				'type' => 'int',
+				'not null' => TRUE,
+				'default' => 0,
+			),
+			'session' => array(
+				'description' => t('Session data.'),
+				'type' => 'text',
+				'size' => 'big',
+				'not null' => FALSE,
+			),
+		),
+		'primary key' => array('sid'),
+	);
+
+
+	return $schema;
+}
+?>

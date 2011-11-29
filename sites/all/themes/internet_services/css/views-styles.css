@@ -1,0 +1,23 @@
+/**
+ * @file
+ * Views Styling
+ */
+/*ESTELLE*/
+.view-alltags .view-content .indent-1{
+    padding-left: 25px;
+}
+.view-alltags .view-content .indent-2{
+    padding-left: 50px;
+}
+.view-alltags .view-content .indent-3{
+    padding-left: 75px;
+}
+.view-alltags .view-content .indent-4{
+    padding-left: 100px;
+}
+.view-alltags .view-content .indent-5{
+    padding-left: 125px;
+}
+.view-alltags .view-content .indent-6{
+    padding-left: 150px;
+}

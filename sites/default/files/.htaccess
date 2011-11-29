@@ -1,0 +1,22 @@
+#SetHandler Drupal_Security_Do_Not_Remove_See_SA_2006_006
+#Options None
+#Options +FollowSymLinks
+
+# SetHandler does not work in our configuration. It would require Apache
+#  to allow the override of FileInfo which is quite dangerous.
+# The directives below are meant to stop accesses to any files that might
+#  be executed.
+
+# First process Allow directives, then Deny ones. If none match, deny by
+#  default.
+Order Allow,Deny
+
+# Only allow access to files that are treated through the default handler by
+#  Apache (as of 6/15/09) - files that are not executed.
+# Place WebAuth directives in here as well (optional).
+<FilesMatch "\.(gif|jpe?g|png|ico|swf|css|js|jar|shtml?|html?|xhtml?|xml|txt|pdf|mov|doc|xls|ppt|pps|odt|ods|odp|docx|xlsx|pptx|mp3|wma)$">
+    # Uncomment (remove the #) from the two lines below to protect the site using WebAuth 
+    #AuthType WebAuth
+    #require valid-user
+    Allow from all
+</FilesMatch>

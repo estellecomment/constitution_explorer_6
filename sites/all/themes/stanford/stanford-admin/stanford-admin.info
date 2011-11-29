@@ -1,0 +1,19 @@
+name = Stanford Administration
+base theme = stanford
+description = Tableless, multi-column sub-theme based on the "Stanford" base theme. Recommended for site administration.
+version = 6.x-2.0
+core = 6.x
+engine = phptemplate
+stylesheets[all][] = stanford-admin.css
+
+regions[header] = Header
+regions[nav] = Expandable menus
+regions[top] = Top content
+regions[left] = Left sidebar
+regions[upper] = Upper content
+regions[middle] = Middle content
+regions[content] = Content
+regions[lower] = Lower content
+regions[right] = Right sidebar
+regions[bottom] = Bottom content
+regions[footer] = Footer

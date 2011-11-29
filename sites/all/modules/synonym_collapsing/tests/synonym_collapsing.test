@@ -1,0 +1,134 @@
+<?php
+
+/**
+ * Base synonym collapsing test case class.
+ */
+class SynonymCollapsingTestCase extends DrupalWebTestCase {
+  var $vid = 0;
+  var $synonym = '';
+  var $base = '';
+
+  /**
+   * Implementation of setUp().
+   */
+  function setUp() {
+    // Enable synonym collapsing and its dependencies.
+    parent::setUp('taxonomy', 'synonym_collapsing');
+
+    // Login a user with permission to access taxonomy administration.
+    $user = $this->drupalCreateUser(array('administer taxonomy'));
+    $this->drupalLogin($user);
+
+    // Set up a synonym collapsing vocabulary.
+    $this->drupalGet('admin/content/taxonomy');
+    $this->clickLink(t('Add vocabulary'));
+    $edit = array();
+    $edit['name'] = $this->randomName();
+    $edit['nodes[page]'] = TRUE;
+    $edit['tags'] = TRUE;
+    $this->drupalPost(NULL, $edit, t('Save'));
+    $this->vid = db_result(db_query('SELECT MAX(vid) FROM {vocabulary}'));
+    $this->assertTrue($this->vid, t('Make sure the synonymn collapsing vocabulary saved properly.'));
+
+    // Enable synonym collapsing for that vocabulary.
+    $this->clickLink(t('Synonym collapsing'));
+    $edit = array();
+    $edit['synonym_collapsing_vocabularies[]'] = $this->vid;
+    $this->drupalPost(NULL, $edit, t('Save configuration'));
+
+    // Add a term with a synonym.
+    $this->synonym = $this->randomName();
+    $this->base = $this->randomName();
+    $edit = array();
+    $edit['name'] = $this->base;
+    $edit['synonyms'] = $this->synonym;
+    $this->drupalPost('admin/content/taxonomy/'. $this->vid .'/add/term', $edit, t('Save'));
+  }
+}
+
+/**
+ * Test case for previewing terms.
+ */
+class SynonymCollapsingPreviewTestCase extends SynonymCollapsingTestCase {
+  /**
+   * Implementation of getInfo().
+   */
+  function getInfo() {
+    return array(
+      'name' => t('Synonym collapsing preview'),
+      'description' => t('Makes sure synonyms collapse on previewing of nodes.'),
+      'group' => t('Synonym collapsing'),
+    );
+  }
+
+  /**
+   * Test function for previewing of terms.
+   */
+  function testPreview() {
+    $user = $this->drupalCreateUser(array('create page content', 'access content'));
+    $this->drupalLogin($user);
+    $edit = array();
+    $edit['taxonomy[tags]['. $this->vid .']'] = $this->synonym;
+    $edit['title'] = $this->randomName();
+    $this->drupalPost('node/add/page', $edit, t('Preview'));
+    $this->assertRaw(t('The term %synonym has been reverted to its synonym, %base.', array('%synonym' => $this->synonym, '%base' => $this->base)), t('Received a notification that our synonyms are collapsing.'));
+    $this->assertText($this->base, t('Make sure the synonym collapses to the base term on preview.'));
+  }
+}
+
+/**
+ * Test case for actually submitting terms.
+ */
+class SynonymCollapsingSubmitTestCase extends SynonymCollapsingTestCase {
+  /**
+   * Implementation of getInfo().
+   */
+  function getInfo() {
+    return array(
+      'name' => t('Synonym collapsing submission'),
+      'description' => t('Makes sure synonyms collapse on submission of nodes.'),
+      'group' => t('Synonym collapsing'),
+    );
+  }
+
+  /**
+   * Test function for previewing of terms.
+   */
+  function testSubmission() {
+    $user = $this->drupalCreateUser(array('create page content', 'access content'));
+    $this->drupalLogin($user);
+    $edit = array();
+    $edit['taxonomy[tags]['. $this->vid .']'] = $this->synonym;
+    $edit['title'] = $this->randomName();
+    $this->drupalPost('node/add/page', $edit, t('Save'));
+    $this->assertRaw(t('The term %synonym has been reverted to its synonym, %base.', array('%synonym' => $this->synonym, '%base' => $this->base)), t('Received a notification that our synonyms are collapsing.'));
+    $this->assertPattern('|<a.*?>'. preg_quote($this->base, '|') .'</a>|', t('Make sure the synonym collapses to the base term upon submission.'));
+  }
+}
+
+/**
+ * Test case for autocompletion of synonyms.
+ */
+class SynonymCollapsingAutocompleteTestCase extends SynonymCollapsingTestCase {
+  /**
+   * Implementation of getInfo().
+   */
+  function getInfo() {
+    return array(
+      'name' => t('Synonym collapsing autocompletion'),
+      'description' => t('Makes sure synonyms match to base terms correctly during autocompletion.'),
+      'group' => t('Synonym collapsing'),
+    );
+  }
+
+  /**
+   * Test function for previewing of terms.
+   */
+  function testAutocompletion() {
+    $user = $this->drupalCreateUser(array('create page content', 'access content'));
+    $this->drupalLogin($user);
+    $name = $this->randomName();
+    $content = $this->drupalGet('synonym_collapsing/autocomplete/'. $this->vid .'/'. $name .', '. substr($this->synonym, 0, -1));
+    $this->assertIdentical($content, drupal_to_js(array($name .', '. $this->base => $this->base)), t('Make sure the synonym autocompletion works.'));
+  }
+}
