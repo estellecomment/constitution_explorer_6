@@ -1,0 +1,57 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1038\cocoasubrtf360
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww9000\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+
+\f0\fs24 \cf0 LIST OF EDITS to Internet Services Theme\
+\
+DO NOT UPGRADE INTERNET SERVICES\
+\
+I did edits to the theme to add features. Do no reinstall the theme with the standard version, or you will delete them.\
+\
+To find my edits : ctrl + F "ESTELLE"\
+\
+
+\b Summary of big changes : 
+\b0 \
+ - added Facebook opengraph tags and like buttons\
+ - added breadcrumbs for book nodes. This shows up in taxonomy view (when you click on a taxonomy term) and search view. (TODO in flatbook too?)\
+ - changed the header: added logos, languages\
+ - changed the node display : added taxonomy terms, breadcrumbs, comment link, report an error link (TODO put this back)\
+\
+
+\b Changes, per file : \
+
+\b0 \
+
+\b CSS files
+\b0 \
+ - blocks : language block in header, cddrl logo in header, edit for long block titles\
+ - blocks-rtl\
+ - comments : minor stuff.\
+ - nodes : lots of stuff! For search view, book view (TODO necessary?), taxonomy view\'85\
+ - pages : for the "about us" pages\
+ - views-styles : test for a styling a two-column layout. \
+\
+
+\b Template.php\
+
+\b0  - preprocess_page : reformat breadcrumbs, add Facebook url for opengraph tags, add info about direction (rtl of ltr?)\
+ - preprocess_node : add breakcrumbs to book nodes (TODO still used?), add report link (TODO fix this?), add comment link, add Facebook like button\
+ - preprocess_comment_wrapper : not really used, can be scrapped.\
+ - preprocess_views_exposed_form : localize the "Apply" button in views with exposed forms\
+ - book_children_nodes (TODO : delete this?) helper function for the full book view that was so ugly.\
+ - build_active_trail : helper for constructing breadcrumbs\
+ - print_terms : code to get and render taxonomy terms for a node. \
+\
+
+\b Template files\
+
+\b0  - book-navigation : TODO is that used? changes the "previous", "next", "up"\
+ - comment-wrapper : not really used\'85\
+ - flat-book-node-export : adds the taxonomy terms for the nodes in the flatbook view (see flatbook module)\
+ - node : tons of stuff! Added taxonomy terms, breadcrumbs for book nodes, varying header size (TODO is that still used?), Facebook like button, "Report an error" button (TODO is this still used?)\
+ - page : Facebook opengraph tags\
+\
+}

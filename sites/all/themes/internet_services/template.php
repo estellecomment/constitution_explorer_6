@@ -191,6 +191,7 @@ function internet_services_preprocess_node(&$vars, $hook) {
   // Reset node links without class "inline", sync with Drupal 7.x.
   $vars['links'] = !empty($vars['node']->links) ? theme('links', $vars['node']->links, array('class' => 'links')) : '';
   
+  // ESTELLE
   // add breadcrumbs if book
   if ($vars['type'] == 'book'){
     $base_path = base_path();
@@ -321,29 +322,8 @@ function internet_services_process(&$vars, $hook) {
   }
 }
 
-/********** attempt to localize tagadelic - Estelle */
-function internet_services_tagadelic_weighted($terms) {
-  foreach ($terms as $term) {
-    $name = $term->name;
-    if (module_exists("i18ntaxonomy")) {
-      $terms = i18ntaxonomy_localize_terms($terms);
-      }
-    $output .= l(
-      $name, 
-      taxonomy_term_path($term), 
-      array(
-        'attributes' => array(
-          'class' => "tagadelic level$term->weight",
-          'rel' => 'tag'
-         )
-      )
-     ) ." \n";
-    }
-  return $output;
-}
-
 /************
- * Estelle : little extra piece to change the text of the "Apply" button in views
+ * Estelle : little extra piece to change the text of the "Apply" button in views, and localize it
  */
 function internet_services_preprocess_views_exposed_form(&$vars, $hook)
 {
@@ -357,86 +337,9 @@ function internet_services_preprocess_views_exposed_form(&$vars, $hook)
          }
 }
 
-/*******************************
- *  ESTELLE edit for book display : want to display child pages in full
- * ********************************/
 
-/* Process variables for book-navigation.tpl.php.
- *
- * The $variables array contains the following arguments:
- * - $book_link
- * - added by Estelle : $page (if node is full page)
- * 
- * @see book-navigation.tpl.php
- *
-function internet_services_preprocess_book_navigation(&$variables) {
-  $book_link = $variables['book_link'];
-
-  // Provide extra variables for themers. Not needed by default.
-  $variables['book_id'] = $book_link['bid'];
-  $variables['book_title'] = check_plain($book_link['link_title']);
-  $variables['book_url'] = 'node/' . $book_link['bid'];
-  $variables['current_depth'] = $book_link['depth'];
-  $variables['tree'] = '';
-
-  // ESTELLE - all this piece is to fill in $variables['tree'] which I'm not using in templates. TODO try commenting out to see if breaks.
-  /*if ($book_link['mlid']) {
-    $variables['tree'] = book_children($book_link);
-
-    if ($prev = book_prev($book_link)) {
-      $prev_href = url($prev['href']);
-      drupal_add_link(array('rel' => 'prev', 'href' => $prev_href));
-      $variables['prev_url'] = $prev_href;
-      $variables['prev_title'] = check_plain($prev['title']);
-    }
-
-    if ($book_link['plid'] && $parent = book_link_load($book_link['plid'])) {
-      $parent_href = url($parent['href']);
-      drupal_add_link(array('rel' => 'up', 'href' => $parent_href));
-      $variables['parent_url'] = $parent_href;
-      $variables['parent_title'] = check_plain($parent['title']);
-    }
-
-    if ($next = book_next($book_link)) {
-      $next_href = url($next['href']);
-      drupal_add_link(array('rel' => 'next', 'href' => $next_href));
-      $variables['next_url'] = $next_href;
-      $variables['next_title'] = check_plain($next['title']);
-    }
-  }
-   
-  $variables['has_links'] = FALSE;
-  // Link variables to filter for values and set state of the flag variable.
-  $links = array('prev_url', 'prev_title', 'parent_url', 'parent_title', 'next_url', 'next_title');
-  foreach ($links as $link) {
-    if (isset($variables[$link])) {
-      // Flag when there is a value.
-      $variables['has_links'] = TRUE;
-    }
-    else {
-      // Set empty to prevent notices.
-      $variables[$link] = '';
-    }
-  }
-  */
-  
-  /*// ESTELLE added : fill in $variables['treenodes'] with book children if necessary.
-  if ($variables['page'] && $book_link['mlid'] && $book_link['has_children']) {
-          $variables['treenodes'] = book_children_nodes($book_link);
-  }else{ // don't display children, but display "more..." if has children.
-      if ($book_link['has_children']){
-        $variables['read_more'] = '<ul class="links"><li class="read-more"><a href="' . base_path() . $book_link['href'] .'">'. t('See articles...') . '</a></li></ul>';
-      }
-  }
-  // just in case
-  $variables['has_children'] = $book_link['has_children'];
-  $variables['node_id'] = $book_link['nid'];
-  $variables['reportlink'] = '<div class="report links"><a href="' . base_path() . 'contribute">' . t('Report an error') .'</a></div>';
-
-}*/
-
-/* get children nodes */
-function book_children_nodes($book_link){
+/* ESTELLE - get children nodes */
+/*function book_children_nodes($book_link){
   $flat = book_get_flat_menu($book_link);
 
   $children_nid = array();
@@ -472,9 +375,10 @@ function book_children_nodes($book_link){
   }
   // prep nodes for theming
    return $themed_children; 
-}
+}*/
 
 /**
+ * ESTELLE
  * Build an active trail to show in the breadcrumb.
  * code copied from book_build_active_trail in book.module
  */
