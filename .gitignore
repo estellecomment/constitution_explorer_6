@@ -4,3 +4,4 @@ imports
 nbproject
 .htaccess
 sites/default/files/.htaccess
+sites/default/files/backup_migrate/
