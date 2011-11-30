@@ -214,20 +214,6 @@ function internet_services_preprocess_node(&$vars, $hook) {
     $vars['breadcrumb'] = $breadcrumb . '</div>';
   }
   
-  // ESTELLE - add "report" link if the node has text
-  /*  $test4 = $vars['body'];
-  $test = mb_substr($test4, 0, strlen('<div'));
-  $testt = substr($test4, 0, 4);
-  $testbook = $test != '<div';
-  $test2 = isset($test4);
-  $test3 = empty($test4);
-  // WTF?????????????????????????
-  if (isset($vars['body']) && !empty($vars['body']) && $vars['body']!=null){
-    if (substr($vars['body'], 0, strlen('<div')) != '<div'){// if the body is empty or starts with div, the node has no text content
-       $vars['reportlink'] = '<div class="report links"><a href="' . $base_path . 'contribute">Report an error</a></div>';
-    }
- }*/
-  
   // ESTELLE - add comment link if needed
   //$links = comment_links($vars['node'], $vars['teaser']); // edit, delete, reply -> not add!
   $links = $vars['node']->links;
@@ -338,45 +324,6 @@ function internet_services_preprocess_views_exposed_form(&$vars, $hook)
 }
 
 
-/* ESTELLE - get children nodes */
-/*function book_children_nodes($book_link){
-  $flat = book_get_flat_menu($book_link);
-
-  $children_nid = array();
-
-  if ($book_link['has_children']) {
-    // Walk through the array until we find the current page.
-    do {
-      $link = array_shift($flat);
-    }
-    while ($link && ($link['mlid'] != $book_link['mlid']));
-    // Continue though the array and collect the links whose parent is this page.
-    while (($link = array_shift($flat)) && $link['plid'] == $book_link['mlid']) {
-      // get children's nid
-      $href = $link['href']; // we count on href being "node/XX" otherwise breaks!
-      preg_match ( "/([0-9]+)$/", $href , $matches);
-      if (!empty ($matches[0])){
-          $nodenid = intval($matches[0]);
-          $children_nid[] = $nodenid;
-      }else{
-          // problem! nid not found
-      }
-    }
-  }
-  
-  // load the nodes
-  // $children = node_load_multiple($children_nid);// doesn't exist in drupal 6!
-  //$themed_children = node_view_multiple($children, 'full'); // doesn't exist in drupal 6!
-  $themed_children = array();
-  foreach($children_nid as $nid){
-      $child = node_load($nid);
-      $themed_child = node_view($child); 
-      $themed_children[] = $themed_child;
-  }
-  // prep nodes for theming
-   return $themed_children; 
-}*/
-
 /**
  * ESTELLE
  * Build an active trail to show in the breadcrumb.
@@ -464,3 +411,50 @@ function render_vocabulary($terms, $vocabulary, $labels, $separator){
   }   
   return $output;
 }
+
+
+function internet_services_preprocess_flat_book_node_export_html(&$vars, $hook) {
+    if ($vars['node']->book['has_children'] == 0){
+       $vars['reportlink'] = '<div class="report links"><a href="' . base_path() . 'contribute">Report an error</a></div>';
+    }
+     
+}
+
+/* ESTELLE - get children nodes of a book node - not used any more.*/
+/*function book_children_nodes($book_link){
+  $flat = book_get_flat_menu($book_link);
+
+  $children_nid = array();
+
+  if ($book_link['has_children']) {
+    // Walk through the array until we find the current page.
+    do {
+      $link = array_shift($flat);
+    }
+    while ($link && ($link['mlid'] != $book_link['mlid']));
+    // Continue though the array and collect the links whose parent is this page.
+    while (($link = array_shift($flat)) && $link['plid'] == $book_link['mlid']) {
+      // get children's nid
+      $href = $link['href']; // we count on href being "node/XX" otherwise breaks!
+      preg_match ( "/([0-9]+)$/", $href , $matches);
+      if (!empty ($matches[0])){
+          $nodenid = intval($matches[0]);
+          $children_nid[] = $nodenid;
+      }else{
+          // problem! nid not found
+      }
+    }
+  }
+  
+  // load the nodes
+  // $children = node_load_multiple($children_nid);// doesn't exist in drupal 6!
+  //$themed_children = node_view_multiple($children, 'full'); // doesn't exist in drupal 6!
+  $themed_children = array();
+  foreach($children_nid as $nid){
+      $child = node_load($nid);
+      $themed_child = node_view($child); 
+      $themed_children[] = $themed_child;
+  }
+  // prep nodes for theming
+   return $themed_children; 
+}*/

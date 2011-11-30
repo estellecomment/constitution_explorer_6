@@ -65,24 +65,7 @@
         print $breadcrumb;
     }
     ?>
-    <?php/*VARYING HEADER SIZE HERE*/?>
-    <?php if ($type == 'book' && !$teaser){
-                if ($book['depth'] <= 4){ // limit headers to h4, smaller is too small
-                   print("<h" . $book['depth'] . ">");
-                   print('<a href="' . $node_url . '" title="' . $title . '">' . $title . '</a>');
-                   print("</h" . $book['depth'] . ">");
-                }else{
-                    print("<h4>");
-                    print('<a href="' . $node_url . '" title="' . $title . '">' . $title . '</a>');
-                    print("</h4>");
-                }
-          }else{
-            print("<h2>");
-            print('<a href="' . $node_url . '" title="' . $title . '">' . $title . '</a>');
-            print('</h2>');
-          }
-     ?>
- <?php /* <a href="<?php print $node_url ?>" title="<?php print $title ?>"><?php print $title ?></a></h2 */?>
+    <?php print('<h2><a href="' . $node_url . '" title="' . $title . '">' . $title . '</a></h2>');?>
 <?php endif; ?>
     
   <?php if (!$page): ?>
@@ -93,8 +76,6 @@
   <?php if ($submitted): ?>
     <span class="submitted"><?php print $submitted ?></span>
   <?php endif; ?>
-
-  <?php /*ADD REPORT LINK HERE*/?>
   </div>
 
   <?php if ($page): ?>
@@ -110,5 +91,4 @@
   <?php if ($type != 'book') : ?>
     <?php print $links; ?>
   <?php endif;?>
-  <?php print $reportlink;?>
 </div>

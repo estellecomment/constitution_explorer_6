@@ -95,7 +95,7 @@ function node_import_create_taxonomy($type, $values, $preview) {
         }
         $output .= '</dl>';
       }
-      // ESTELLE add display of language here. Where is it used, is it really useful?
+      // TODO : ESTELLE add display of language here. Where is it used, is it really useful?
 
       $output .= '</div>';
 

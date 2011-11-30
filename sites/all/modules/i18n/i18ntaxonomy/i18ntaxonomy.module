@@ -288,9 +288,11 @@ function i18ntaxonomy_taxonomy($op, $type, $edit = NULL) {
             } elseif($lang = _i18n_get_context_lang()) {
               // The term may come from a node tags field, just if this is not a taxonomy form
               _i18ntaxonomy_term_set_lang($edit['tid'], $lang);
+         // ESTELLE
             } else if(!empty($edit['node_language'])){
                 // new term coming from a node, set the node language as term language
                 _i18ntaxonomy_term_set_lang($edit['tid'], $edit['node_language']);
+         // end ESTELLE 
             } else{
               // Not from the taxonomy form nor node form, set current language
               _i18ntaxonomy_term_set_lang($edit['tid'], $language->language);

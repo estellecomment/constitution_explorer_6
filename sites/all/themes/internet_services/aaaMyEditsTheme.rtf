@@ -16,9 +16,9 @@ To find my edits : ctrl + F "ESTELLE"\
 \b Summary of big changes : 
 \b0 \
  - added Facebook opengraph tags and like buttons\
- - added breadcrumbs for book nodes. This shows up in taxonomy view (when you click on a taxonomy term) and search view. (TODO in flatbook too?)\
+ - added breadcrumbs for book nodes. This shows up in taxonomy view (when you click on a taxonomy term) and search view. \
  - changed the header: added logos, languages\
- - changed the node display : added taxonomy terms, breadcrumbs, comment link, report an error link (TODO put this back)\
+ - changed the node display : added taxonomy terms, breadcrumbs, comment link, "report an error" link (in flatbook view)\
 \
 
 \b Changes, per file : \
@@ -30,28 +30,28 @@ To find my edits : ctrl + F "ESTELLE"\
  - blocks : language block in header, cddrl logo in header, edit for long block titles\
  - blocks-rtl\
  - comments : minor stuff.\
- - nodes : lots of stuff! For search view, book view (TODO necessary?), taxonomy view\'85\
+ - nodes : lots of stuff! For search view, book view, taxonomy view\'85\
  - pages : for the "about us" pages\
  - views-styles : test for a styling a two-column layout. \
 \
 
 \b Template.php\
 
-\b0  - preprocess_page : reformat breadcrumbs, add Facebook url for opengraph tags, add info about direction (rtl of ltr?)\
- - preprocess_node : add breakcrumbs to book nodes (TODO still used?), add report link (TODO fix this?), add comment link, add Facebook like button\
+\b0  - preprocess_page : reformat breadcrumbs, add Facebook url for opengraph tags, add info about direction (rtl of ltr)\
+ - preprocess_node : add breadcrumbs to book nodes (in search view and taxonomy view), add comment link, add Facebook like button\
  - preprocess_comment_wrapper : not really used, can be scrapped.\
  - preprocess_views_exposed_form : localize the "Apply" button in views with exposed forms\
- - book_children_nodes (TODO : delete this?) helper function for the full book view that was so ugly.\
  - build_active_trail : helper for constructing breadcrumbs\
  - print_terms : code to get and render taxonomy terms for a node. \
-\
+ - internet_services_preprocess_flat_book_node_export_html : add the "report an error" link\
+ \
 
 \b Template files\
 
-\b0  - book-navigation : TODO is that used? changes the "previous", "next", "up"\
+\b0  - book-navigation : "goto parent page" at the bottom of flatbook nodes.\
  - comment-wrapper : not really used\'85\
- - flat-book-node-export : adds the taxonomy terms for the nodes in the flatbook view (see flatbook module)\
- - node : tons of stuff! Added taxonomy terms, breadcrumbs for book nodes, varying header size (TODO is that still used?), Facebook like button, "Report an error" button (TODO is this still used?)\
+ - flat-book-node-export : adds the taxonomy terms for the nodes in the flatbook view (see flatbook module), and the "report an error" link\
+ - node : tons of stuff! Added taxonomy terms, breadcrumbs for book nodes, Facebook like button\
  - page : Facebook opengraph tags\
 \
 }

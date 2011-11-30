@@ -572,7 +572,7 @@ function taxonomy_manager_merge_form($voc) {
   $options['collect_parents'] = t('Collect all parents of selected terms an add it to the merged term'); 
   $options['collect_children'] = t('Collect all children of selected terms an add it to the merged term');
   $options['collect_relations'] = t('Collect all relations of selected terms an add it to the merged term');
-  $options['merge_translations'] = t('Apply the merge across languages (when the terms have translations)');
+  $options['merge_translations'] = t('Apply the merge across languages (when the terms have translations)'); // ESTELLE added option
   
   if (count($options) > 0) {
     $form['merge']['options'] = array( 
@@ -2230,6 +2230,8 @@ function taxonomy_manager_merge($main_term, $merging_terms, $options = array(), 
            node_save(node_load($obj->nid));
         } 
       }
+      // end ESTELLE's code
+      
       //save merged term (and synonomys of merged term) as synonym
       $term = taxonomy_get_term($merge_term);
       $merge_term_synonyms = taxonomy_get_synonyms($merge_term);

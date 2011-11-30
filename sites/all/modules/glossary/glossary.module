@@ -327,7 +327,7 @@ function glossary_search_results($keys = NULL) {
     $found = drupal_get_form('glossary_search_form', $keys) .'<p>'. t('Your search yielded no results') . glossary_help('glossary_search#noresults') .'</p>';
   }
 
-  //$output .= theme('box', t('Glossary search results'), $found); // ESTELLE - remove the redundant title
+  //$output .= theme('box', t('Glossary search results'), $found); // ESTELLE - remove the redundant title, it show up twice for some reason
   $output .= theme('box', /*t('Glossary search results')*/ '' , $found);
   return $output ."</div>\n";
 }

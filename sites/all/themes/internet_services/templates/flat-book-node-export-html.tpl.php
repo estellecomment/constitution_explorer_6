@@ -31,11 +31,11 @@
   <?php endif ?>
 
     <?php print internet_services_print_terms($node, $vname = 'Tags', $labels = TRUE);?>
-    
+  
   <h2 class="book-heading"><?php print $title; ?></h2>
   <?php print $content; ?>
+    <?php print $reportlink;?>
   <div class="back-to-top"><a href="#node-<?php print $root_nid; ?>"><?php print t('Back to Top'); ?></a></div>
-  
-  
+    
   <?php print $children; ?>
 </div>

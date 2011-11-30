@@ -132,15 +132,15 @@
 }
 
 /************************
-   FULL BOOK VIEW - Estelle
+   FULL BOOK VIEW (flatbook) - Estelle
 *************************/
-.node-book.node-notpage.node-full{
+/*.node-book.node-notpage.node-full{
     border-top-color: #EAEAEA;
     border-top-style: solid;
     border-top-width: 1px;
-}
+}*/
 
-.book-navigation a.page-up {
+.book-navigation a.page-up { /*used*/
     margin: 0 5%;
     width: 20%;
     display: block;
