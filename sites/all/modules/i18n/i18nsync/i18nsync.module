@@ -349,7 +349,8 @@ function i18nsync_node_taxonomy(&$node, &$source) {
     if (!isset($source->i18ntaxonomy)) {
       $source->i18ntaxonomy = i18ntaxonomy_node_get_terms($source);
     }
-    // ESTELLE - fix for the disappearing tags bug
+    // ESTELLE - $node->taxonomy = i18ntaxonomy_translate_terms($source->i18ntaxonomy, $node->language, FALSE);
+    // - fix for the disappearing tags bug
     // Terms that don't have translations in the source language are skipped. 
     // So when the source node is saved+translated, these terms get deleted from other versions too.
     //$node->taxonomy = i18ntaxonomy_translate_terms($source->i18ntaxonomy, $node->language, FALSE);
@@ -369,6 +370,7 @@ function i18nsync_node_taxonomy(&$node, &$source) {
     // add the terms that would have been accidentally deleted
     $sourcetaxonomy_translated = $sourcetaxonomy_translated + $saved_from_deletion;//note : don't use array_merge because it reorders the keys
     $node->taxonomy = $sourcetaxonomy_translated;
+
   }
   else {
     // If not multilingual taxonomy enabled, just copy over.
