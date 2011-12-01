@@ -193,10 +193,11 @@ function internet_services_preprocess_node(&$vars, $hook) {
   
   // ESTELLE
   // add breadcrumbs if book
+  $with_home = false; //include "Home" in the breadcrumbs?
   if ($vars['type'] == 'book'){
     $base_path = base_path();
     $book_link = $vars['book'];
-    $trail = build_active_trail($book_link);
+    $trail = build_active_trail($book_link, $with_home);
     $breadcrumb = '<div class="breadcrumb">';
     $separator = theme_get_setting('zen_breadcrumb_separator');
     foreach($trail as $link){
@@ -329,13 +330,15 @@ function internet_services_preprocess_views_exposed_form(&$vars, $hook)
  * Build an active trail to show in the breadcrumb.
  * code copied from book_build_active_trail in book.module
  */
-function build_active_trail($book_link) {
+function build_active_trail($book_link, $with_home) {
  // static $trail; // we want it recomputed everytime.
 
 //  if (!isset($trail)) {
     $trail = array();
-    $trail[] = array('title' => t('Home'), 'href' => '<front>', 'localized_options' => array());
-
+    if ($with_home){
+        $trail[] = array('title' => t('Home'), 'href' => '<front>', 'localized_options' => array());
+    }
+    
     $tree = menu_tree_all_data($book_link['menu_name'], $book_link);
     $curr = array_shift($tree);
 

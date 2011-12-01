@@ -2,5 +2,6 @@
 name = Reverse Proxy
 description = Module for integrating with Stanford's Virtual Host Proxy service
 package = Stanford
-version = 6.x-1.1-alpha1
+version = 6.x-2.1-alpha1
 core = 6.x
+dependencies[] = reverse_proxy_helper

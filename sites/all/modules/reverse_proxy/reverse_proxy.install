@@ -1,0 +1,76 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Reverse Proxy module.
+ */
+
+/*
+ * Implementation of hook_uninstall().
+ * http://api.drupal.org/api/function/hook_uninstall/6
+ */
+function reverse_proxy_uninstall() {
+  variable_del('reverse_proxy_on');
+  variable_del('reverse_proxy_proxy_host');
+  variable_del('reverse_proxy_rewrite_base');
+  variable_del('reverse_proxy_settings_backup');
+}
+
+
+/**
+ * Implementation of hook_disable().
+ *
+ */
+function reverse_proxy_disable() {
+  variable_set('reverse_proxy_on', FALSE);
+  $timestamp = time();
+  $settings_backup_variable = variable_get('reverse_proxy_settings_backup', NULL);
+  $command = "find . -name '". $settings_backup_variable ."'";
+  $settings_backup_file = shell_exec($command);
+  if ($settings_backup_variable && $settings_backup_file) {
+    $command = 'mv sites/default/settings.php sites/default/settings.php.backup-'. $timestamp;
+    shell_exec($command);
+    $command = 'cp sites/default/'. $settings_backup_variable .' sites/default/settings.php';
+    shell_exec($command);
+  }
+  else {
+    drupal_set_message('Unable to revert your settings.php file to its backup. You will need to edit it manually.', 'error');
+  }
+}
+
+/**
+ * Implementation of hook_update_N().
+ *
+ */
+
+function reverse_proxy_update_6201() {
+  global $base_url;
+  $remctl_query = 'remctl tools proxy showhost ';
+  $rp = realpath('.');
+  $rp = preg_replace('/\/afs\/ir/', 'http://www', $rp);
+  $remctl_query .= $rp;
+  $proxy_host = array(shell_exec($remctl_query));
+  $http = 'http://';
+  if (!$proxy_host[0]) {  //if querying with http:// didn't return a value, try https://
+    $remctl_query = 'remctl tools proxy showhost ';
+    $rp = realpath('.');
+    $rp = preg_replace('/\/afs\/ir/', 'https://www', $rp);
+    $remctl_query .= $rp;
+    $proxy_host = array(shell_exec($remctl_query));
+    $http = 'https://';
+  }
+  if ($base_url) {
+    variable_set('reverse_proxy_proxy_host', $base_url);  //assume they have it set up correctly?
+  }
+  elseif ($proxy_host[0]) {
+    variable_set('reverse_proxy_proxy_host', $proxy_host[0]);
+  }
+  else {
+   // set it to ??
+  }
+  $rewrite_base = preg_replace('/\/afs\/ir.stanford.edu/', '', realpath('.'));
+  variable_set('reverse_proxy_rewrite_base', $rewrite_base);
+  variable_set('reverse_proxy_on', TRUE);
+}
+

@@ -1,0 +1,26 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_form_alter().
+ */
+
+function reverse_proxy_helper_form_alter(&$form, $form_state, $form_id) {
+  if ($form_id == 'system_modules') {
+    $redirect = 'https://www.stanford.edu';
+    $rp = realpath('.');
+    $rp = preg_replace('/\/afs\/ir/', 'https://www', $rp);
+    $rp .= '/admin/build/modules';
+// using a custom submit handler here because a form redirect gets killed by system_modules_submit()
+    $form['#submit'][] = 'reverse_proxy_helper_redirect';
+  }
+}
+
+function reverse_proxy_helper_redirect(&$form, $form_state) {
+  if ($form_state['values']['status']['reverse_proxy'] == '0') {
+    $rp = realpath('.');
+    $rp = preg_replace('/\/afs\/ir./', 'https://', $rp);
+    $rp .= '/user';
+    $form['#redirect'] = $rp;
+  }
+}

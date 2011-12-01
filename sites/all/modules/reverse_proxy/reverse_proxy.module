@@ -1,34 +1,91 @@
 <?php
 // $Id$
 
-/*
- *
- * Get the path from the webserver root and strip out the index.php or
- * whatever.php to get the path in the format of /group/groupname/cgi-bin/drupal
- *
+/**
+ * @file
+ * Custom module for integrating with Stanford University's Virtual Host Proxy service
+ */
+
+function _reverse_proxy_uri() {
+  $reverse_proxy_on = variable_get('reverse_proxy_on', NULL);
+  if ($reverse_proxy_on) { //only make changes to $_SERVER['REQUEST_URI'] if the module has been configured properly and has been set to 'on'
+    global $base_url;
+    $proxy_host = variable_get('reverse_proxy_proxy_host', NULL);
+
+    $su_rewritebase = $_SERVER['SCRIPT_NAME'];
+    $su_rewritebase = preg_replace('/\/\w*\.php$/', '', $su_rewritebase);
+    if (!empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+      $pattern = preg_replace('/\//', '\/', $su_rewritebase);
+      $_SERVER['REQUEST_URI'] = preg_replace("/$pattern/", '', $_SERVER['REQUEST_URI']);
+    }
+  }
+}
+
+_reverse_proxy_uri();
+
+/**
+ * Implementation of hook_menu().
  *
  */
 
-$su_rewritebase = $_SERVER['SCRIPT_NAME'];
-$su_rewritebase = preg_replace('/\/\w*\.php$/', '', $su_rewritebase);
+function reverse_proxy_menu() {
+  $items['admin/settings/reverse_proxy'] = array(
+    'title' => 'Reverse Proxy',
+    'description' => 'Custom configuration of the Drupal site with Stanford\'s Virtual Host Proxy Service.',
+    'page callback' => 'reverse_proxy_settings_page',
+    'access arguments' => array('administer site configuration'),
+    'file' => 'reverse_proxy.admin.inc',
+  );
+  return $items;
+}
 
-/*
- *
- * Uncomment the following and put in your RewriteBase path
- * if the code above is not working
+
+/**
+ * Implementation of hook_help().
  *
  */
+function reverse_proxy_help($path, $arg) {
+  switch ($path) {
 
-//$su_rewritebase = "/group/groupname/cgi-bin/drupal"; //NO trailing slash
-
-/*
- *
- * Build the regex pattern and then strip /group/groupname/cgi-bin/drupal
- * from the $_SERVER['REQUEST_URI'] variable
- *
- *
- */
-if (!empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
-  $pattern = preg_replace('/\//', '\/', $su_rewritebase);
-  $_SERVER['REQUEST_URI'] = preg_replace("/$pattern/", '', $_SERVER['REQUEST_URI']);
+    case 'admin/help#reverse_proxy':
+    $output .= '<p>';
+    $output .= t('This module provides URL rewrites for integrating Drupal with a Reverse Proxy service. ');
+    $output .= t('It was developed by the Stanford University Open Source Lab for integrating with the ');
+    $output .= t('Virtual Host Proxy Service provided by Stanford University ITS (aka, "');
+    $output .= l(t('Vanity URL'), 'http://vanityurl.stanford.edu') .'").';
+    $output .= '</p>';
+    $output .= '<p>';
+    $output .= '<h3>'. t('Configuration') .'</h3><p>';
+    $output .= t('The below instructions assume that you have %drupal_directory ', array('%drupal_directory' => '/afs/ir/group/yourgroup/cgi-bin/drupal'));
+    $output .= t('as your Drupal installation directory.');
+    $output .= '</p>';
+    $output .= '<ol><li>';
+    $output .= t('Go to ') . l('http://vanityurl.stanford.edu', 'http://vanityurl.stanford.edu');
+    $output .= t(' to set up a virtual host proxy (e.g., %yourgroup_url) ', array('%yourgroup_url' => 'https://yourgroup.stanford.edu'));
+    $output .= t('that points to your drupal directory: %group_url', array('%group_url' => 'https://www.stanford.edu/group/yourgroup/cgi-bin/drupal'));
+    $output .= '</li><li>';
+    $output .= t('If you want to use the WebAuth module on your site (you do), you MUST request that the virtual ');
+    $output .= t('host proxy use SSL (i.e., %vanity_url) in the "Additional Configuration" section.', array('%vanity_url' => 'https://yourgroup.stanford.edu'));
+    $output .= '</li><li>';
+    $output .= t('In %htaccess, set the RewriteBase variable to %rewrite_base. ', array('%htaccess' => '/afs/ir/group/yourgroup/cgi-bin/drupal/.htaccess', '%rewrite_base' => '/group/yourgroup/cgi-bin/drupal'));
+    $output .= t('(note that this is set by default on sites installed with the Collaboration Tools Installer). ');
+    $output .= t('The entire RewriteBase line in .htaccess should look like the following:');
+    $output .= '<blockquote><code>';
+    $output .= t('RewriteBase %rewrite_base', array('%rewrite_base' => '/group/yourgroup/cgi-bin/drupal'));
+    $output .= '</code></blockquote>';
+    $output .= '</li><li>';
+    $output .= t('Enable the Reverse Proxy module. NOTE: Simply enabling the module does not do anything immediately. ');
+    $output .= t('You must go on to Step 5.');
+    $output .= '</li><li>';
+    $output .= t('Go to admin/settings/reverse_proxy and verify that the information is correct. If it is, click "Save configuration". ');
+    $output .= t('You will be redirected to %vanity_url, and you will need to log in again.', array('%vanity_url' => 'https://yourgroup.stanford.edu/user'));
+    $output .= '</li><li>';
+    $output .= t('(optional) Create a .htaccess file in /afs/ir/group/yourgroup/WWW/ with the following directives:');
+    $output .= '<blockquote><code>';
+    $output .= t('RewriteEngine on') .'<br />';
+    $output .= t('RewriteRule (.*) http://yourgroup.stanford.edu/$1 [R=301,L]') .'</code></blockquote>';
+    $output .= t('(Note: do not complete step 6 if you have files living in your WWW directory that you want to be accessible via the web.)');
+    $output .= '</li></ol>';
+    return $output;
+  }
 }

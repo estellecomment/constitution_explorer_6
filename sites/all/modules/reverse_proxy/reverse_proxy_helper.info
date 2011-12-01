@@ -1,0 +1,6 @@
+; $Id$
+name = Reverse Proxy Helper 
+description = Helper module for Reverse Proxy module 
+package = Stanford
+version = 6.x-2.1-alpha1
+core = 6.x
