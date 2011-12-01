@@ -151,7 +151,7 @@
     border-bottom: 1px solid #EAEAEA;
 }
 .node-page .content .section-4 {
-    border-bottom: 1px solid #EAEAEA;
+    border-top: 1px solid #EAEAEA;
     padding-bottom: 25px;
     padding-top: 15px;
 }
@@ -165,10 +165,16 @@
 .view-Search .view-filters .views-exposed-widget {
     float: none;
 }
-.view-Search .view-content{
+
+
+/****************************
+   Views-based pages (search and taxonomy)
+*****************************/
+.view-content{
     padding-top: 30px;
 }
-.view-Search .view-content .node{
+
+.view-content .node{
     /*padding-top: 5px;*/
     border-top-color: #EAEAEA;
     border-top-style: solid;
@@ -176,7 +182,7 @@
 }
 
 /*****************
-  TAXONOMY - Estelle
+  TAXONOMY TERMS - Estelle
 *******************/
 .field-label-inline .field-item /* article tags */{/* ESTELLE */
     display: inline;
