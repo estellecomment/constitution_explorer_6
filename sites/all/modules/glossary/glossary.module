@@ -948,7 +948,7 @@ function glossary_overview($vocab, $letter = NULL) {
   $output .= '</div></div>'; //close gloassary-toc and glossary-list
   // ESTELLE - add the toc and a little explanation about the page
   $toc = $toc . '</div></div>'; // close glossary-toc and content
-  $output = $toc . $output;
+  //$output = $toc . $output; - removed TOC, it's too ugly
   $output = '<div id="subtitle">' . t('The constitution articles are tagged by topic. Click on any of the tags below to see the related articles. Alternatively, you can try ') . l(t('searching'), 'search') . t(' in the text of constitutions.') . '</div>' . $output;
   return glossary_admin_links($vocab, $dest) . $output;
 }
