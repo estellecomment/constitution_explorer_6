@@ -126,6 +126,21 @@ ul.links li.dff_like {
     padding-left: 70px;
 }
 
+/*ESTELLE*/
+ul.links li.back-to-top{
+  background: url(../images/arrow_large_up.png) left center no-repeat; /* LTR */
+  padding-left: 18px;
+}
+
+/* ESTELLE */
+.report {
+    background: url(../images/report_small.jpg) left center no-repeat;
+    padding-left:20px;
+    float: right;
+}
+
+
+
 /**
  * Aggregator.module
  */
@@ -191,8 +206,3 @@ div.vertical-tabs ul.vertical-tabs-list li {
   z-index: auto;
 }
 
-.report {
-    background: url(../images/report_small.jpg) left center no-repeat;
-    padding-left:20px;
-    float: right;
-}

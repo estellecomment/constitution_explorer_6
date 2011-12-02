@@ -59,7 +59,7 @@
     <?php print $links; ?>
 <?php endif;?>
     
-<?php if (!$page): ?>
+<?php if (!$page && $teaser): ?>
     <?php /* EXTRA BREADCRUMBS HERE*/?>
     <?php if($type == 'book' && !$page && $teaser){
         print $breadcrumb;

@@ -32,10 +32,14 @@
 
     <?php print internet_services_print_terms($node, $vname = 'Tags', $labels = TRUE);?>
   
-  <h2 class="book-heading"><?php print $title; ?></h2>
+  <h2 class="book-heading"><?php /*print $title;*/ print $singlenodelink; ?></h2>
   <?php print $content; ?>
-    <?php print $reportlink;?>
-  <div class="back-to-top"><a href="#node-<?php print $root_nid; ?>"><?php print t('Back to Top'); ?></a></div>
-    
+  
+  <ul class="links">
+  <?php print $reportlink;?>
+  <li class="back-to-top"><a href="#node-<?php print $root_nid; ?>"><?php print t('Back to Top'); ?></a></li>
+  <li class="comment_add"><?php print $nodecommentlink;?></li>
+  </ul>
+  
   <?php print $children; ?>
 </div>

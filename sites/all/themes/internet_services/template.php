@@ -420,7 +420,8 @@ function internet_services_preprocess_flat_book_node_export_html(&$vars, $hook) 
     if ($vars['node']->book['has_children'] == 0){
        $vars['reportlink'] = '<div class="report links"><a href="' . base_path() . 'contribute">Report an error</a></div>';
     }
-     
+    $vars['singlenodelink'] = l($vars['node']->title, "singlenode/" . $vars['node']->nid); 
+    $vars['nodecommentlink'] = l(t("Add a comment"), "singlenode/" . $vars['node']->nid, array("attributes"=>array("class"=>"comment-add")));
 }
 
 /* ESTELLE - get children nodes of a book node - not used any more.*/

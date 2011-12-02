@@ -170,11 +170,11 @@
 /****************************
    Views-based pages (search and taxonomy)
 *****************************/
-.view-content{
+.view-Search .view-content, .view-taxonomy-term .view-content{
     padding-top: 30px;
 }
 
-.view-content .node{
+.view-content .node-teaser{
     /*padding-top: 5px;*/
     border-top-color: #EAEAEA;
     border-top-style: solid;
