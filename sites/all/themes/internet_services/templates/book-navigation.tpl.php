@@ -29,7 +29,7 @@
  * @see template_preprocess_book_navigation()
  */
 ?>
-<?php if (($tree || $has_links) && $teaser): ?>
+<?php if (($tree || $has_links) /*&& $teaser*/): ?>
   <div id="book-navigation-<?php print $book_id; ?>" class="book-navigation">
     <?php print $tree; ?>
 
