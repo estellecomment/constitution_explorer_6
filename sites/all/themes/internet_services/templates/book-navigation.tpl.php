@@ -38,8 +38,11 @@
       <?php /*if ($prev_url) : ?>
         <a href="<?php print $prev_url; ?>" class="page-previous" title="<?php print t('Go to previous page'); ?>"><?php print t('‹ ') . $prev_title; ?></a>
       <?php endif; */?>
+      <?php if ($fullview_link) : ?>
+        <?php print $fullview_link; ?>
+      <?php endif; ?>
       <?php if ($parent_url) : ?>
-        <a href="<?php print $parent_url; ?>" class="page-up" title="<?php print t('Go to parent page'); ?>"><?php /*print t('up'); */?><?php print t('Go to parent page'); ?></a>
+        <a href="<?php print $parent_url; ?>" class="page-up back-to-top" title="<?php print t('Parent page'); ?>"><?php /*print t('up'); */?><?php print t('Parent page'); ?></a>
       <?php endif; ?>
       <?php /*if ($next_url) : ?>
         <a href="<?php print $next_url; ?>" class="page-next" title="<?php print t('Go to next page'); ?>"><?php print $next_title . t(' ›'); ?></a>
