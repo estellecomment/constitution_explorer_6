@@ -463,3 +463,25 @@ function internet_services_preprocess_flat_book_node_export_html(&$vars, $hook) 
    return $themed_children; 
 }*/
 
+function internet_services_preprocess_book_navigation(&$vars, $hook){
+    //ESTELLE
+    // replace the "/sitename/?q=node/123" by "/sitename/?q=singlenode/123" 
+    // This avoids returning to the full page (flatbook) view of the constitution 
+    // when you are in a singlenode view.
+    $parent_node_url = $vars['parent_url'];
+    $parent_singlenode_url = str_replace("node", "singlenode", $parent_node_url);
+    $vars['parent_url'] = $parent_singlenode_url;
+    
+    // modify children's links to singlenode
+    // Note : we don't know if it's clean or dirty URLs, but l() knows
+    $link_node = l("", "node");
+    $link_node = str_replace("\"></a>", "", $link_node);
+    $link_node = str_replace("<a ", "", $link_node); // href="/constitution_explorer_6_2/?q=node
+    $link_singlenode = str_replace('node', 'singlenode', $link_node); //href="/constitution_explorer_6_2/?q=singlenode
+    $vars['tree'] = str_replace($link_node, $link_singlenode, $vars['tree']);
+    
+    // add link to go back to full text (flatbook) view
+    $fullview_link = l("Back to full text", $vars['book_link']['href']);
+    $vars['fullview_link'] = $fullview_link;
+}
+
