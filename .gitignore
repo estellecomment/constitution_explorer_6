@@ -6,3 +6,7 @@ nbproject
 sites/default/files/.htaccess
 sites/default/files/backup_migrate/
 sites/default/files/css
+sites/default/files/advagg_css/
+sites/default/files/advagg_js/
+sites/default/files/js/
+sites/default/files/js/advagg_js
