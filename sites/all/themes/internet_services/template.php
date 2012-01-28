@@ -424,7 +424,7 @@ function internet_services_preprocess_flat_book_node_export_html(&$vars, $hook) 
     }
     $vars['singlenodelink'] = l($vars['node']->title, "singlenode/" . $vars['node']->nid); 
     if (user_access('post comments')){
-        $vars['nodecommentlink'] = l(t("Add a comment"), "singlenode/" . $vars['node']->nid, array("attributes"=>array("class"=>"comment-add")));
+	$vars['nodecommentlink'] = l(t("Add a comment"), "singlenode/" . $vars['node']->nid, array("attributes"=>array("class"=>"comment-add")));
     }
 }
 

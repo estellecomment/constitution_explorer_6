@@ -127,7 +127,7 @@ ul.links li.dff_like {
 }
 
 /*ESTELLE*/
-.back-to-top{
+ul.links li.back-to-top, .back-to-top{
   background: url(../images/arrow_large_up.png) left center no-repeat; /* LTR */
   padding-left: 18px;
 }

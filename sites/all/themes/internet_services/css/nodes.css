@@ -142,7 +142,7 @@
 
 .book-navigation a.page-up { /*used*/
     margin: 0 5%;
-    width: 20%;
+    width: auto;
     display: block;
     float: right;
 }
