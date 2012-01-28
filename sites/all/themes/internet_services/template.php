@@ -146,6 +146,8 @@ function internet_services_preprocess_page(&$vars, $hook) {
       $new_crumbs = $new_crumbs . '</div>';
       $vars['breadcrumb'] = $new_crumbs;
   }
+  
+  
   // ESTELLE - add base URL for Facebook tags
   global $base_url;
   $vars['base_url'] = $base_url;
@@ -418,10 +420,12 @@ function render_vocabulary($terms, $vocabulary, $labels, $separator){
 
 function internet_services_preprocess_flat_book_node_export_html(&$vars, $hook) {
     if ($vars['node']->book['has_children'] == 0){
-       $vars['reportlink'] = '<div class="report links"><a href="' . base_path() . 'contribute">Report an error</a></div>';
+       $vars['reportlink'] = '<div class="report links"><a href="' . base_path() . 'participate">Report an error</a></div>';
     }
     $vars['singlenodelink'] = l($vars['node']->title, "singlenode/" . $vars['node']->nid); 
-    $vars['nodecommentlink'] = l(t("Add a comment"), "singlenode/" . $vars['node']->nid, array("attributes"=>array("class"=>"comment-add")));
+    if (user_access('post comments')){
+        $vars['nodecommentlink'] = l(t("Add a comment"), "singlenode/" . $vars['node']->nid, array("attributes"=>array("class"=>"comment-add")));
+    }
 }
 
 /* ESTELLE - get children nodes of a book node - not used any more.*/
@@ -463,25 +467,52 @@ function internet_services_preprocess_flat_book_node_export_html(&$vars, $hook) 
    return $themed_children; 
 }*/
 
+
+//ESTELLE
 function internet_services_preprocess_book_navigation(&$vars, $hook){
-    //ESTELLE
-    // replace the "/sitename/?q=node/123" by "/sitename/?q=singlenode/123" 
-    // This avoids returning to the full page (flatbook) view of the constitution 
-    // when you are in a singlenode view.
+    // check if we're building a node page or a singlenode page
+    $singlenode = false;
+    $page_query = $_SERVER['QUERY_STRING'];
+    if (strstr($page_query, "singlenode")){
+        $singlenode = true;
+    }
+
+    // check if we're going to a fullview page (which should not be displayed as singlenode)
+    $flattened_ancestor = _flat_book_find_flattened_ancestor($vars['book_link']);
+    $flattened_ancestor_url = url("node/" . $flattened_ancestor);
     $parent_node_url = $vars['parent_url'];
-    $parent_singlenode_url = str_replace("node", "singlenode", $parent_node_url);
-    $vars['parent_url'] = $parent_singlenode_url;
+
+    if ($singlenode && $parent_node_url != $flattened_ancestor_url){
+        // replace the "/sitename/?q=node/123" by "/sitename/?q=singlenode/123" 
+        // This avoids returning to the full page (flatbook) view of the constitution 
+        // when you are in a singlenode view.
+        $parent_singlenode_url = str_replace("node", "singlenode", $parent_node_url);
+        $vars['parent_url'] = $parent_singlenode_url;
+    }
     
-    // modify children's links to singlenode
-    // Note : we don't know if it's clean or dirty URLs, but l() knows
-    $link_node = l("", "node");
-    $link_node = str_replace("\"></a>", "", $link_node);
-    $link_node = str_replace("<a ", "", $link_node); // href="/constitution_explorer_6_2/?q=node
-    $link_singlenode = str_replace('node', 'singlenode', $link_node); //href="/constitution_explorer_6_2/?q=singlenode
-    $vars['tree'] = str_replace($link_node, $link_singlenode, $vars['tree']);
+    if ($singlenode){
+        // modify children's links to singlenode
+        // Note : we don't know if it's clean or dirty URLs, but l() knows
+        $link_node = l("", "node");
+        $link_node = str_replace("\"></a>", "", $link_node);
+        $link_node = str_replace("<a ", "", $link_node); // href="/constitution_explorer_6_2/?q=node
+        $link_singlenode = str_replace('node', 'singlenode', $link_node); //href="/constitution_explorer_6_2/?q=singlenode
+        $vars['tree'] = str_replace($link_node, $link_singlenode, $vars['tree']);
+    }
     
-    // add link to go back to full text (flatbook) view
-    $fullview_link = l("Back to full text", $vars['book_link']['href']);
-    $vars['fullview_link'] = $fullview_link;
+    if ($singlenode){
+        // add link to go back to full text (flatbook) view
+        $fullview_link = l("Back to full text", $vars['book_link']['href']);
+        $vars['fullview_link'] = $fullview_link;
+    }
 }
 
+// ESTELLE - used to test if type is singlenode
+function isPageType($type){
+    $singlenode = false;
+    $page_query = $_SERVER['QUERY_STRING'];
+    if (strstr($page_query, "singlenode")){
+        $singlenode = true;
+    }
+    return $singlenode;
+}

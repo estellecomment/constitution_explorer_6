@@ -38,7 +38,10 @@
   <ul class="links">
   <?php print $reportlink;?>
   <li class="back-to-top"><a href="#node-<?php print $root_nid; ?>"><?php print t('Back to Top'); ?></a></li>
-  <li class="comment_add"><?php print $nodecommentlink;?></li>
+  <?php if($nodecommentlink):?>
+    <li class="comment_add"><?php print $nodecommentlink;?></li>
+  <?php endif?>
+  
   </ul>
   
   <?php print $children; ?>
