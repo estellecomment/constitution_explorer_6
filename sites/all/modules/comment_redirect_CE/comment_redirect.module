@@ -1,5 +1,5 @@
 <?php
-
+// aaaaa
 function comment_redirect_form_alter(&$form, $form_state, $form_id) {
     if ($form_id == "comment_form"){
 
