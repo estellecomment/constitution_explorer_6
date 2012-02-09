@@ -1,0 +1,9 @@
+; $Id: comment_redirect.info,v 1.0 2012/01/27 17:44:00 author Exp $
+name = Comment Redirect
+description = Module to redirect the user to the singlenode page after submitting a comment.
+package = Other
+core = 6.x
+
+version = "6.x"
+project = "custom"
+datestamp = "1229018427"
